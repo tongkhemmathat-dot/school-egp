@@ -1,9 +1,15 @@
 import { Injectable } from "@nestjs/common";
+import type { Prisma } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()
 export class AuditService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private toJson(value?: Record<string, unknown> | null): Prisma.InputJsonValue | undefined {
+    if (value == null) return undefined;
+    return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+  }
 
   async record(params: {
     orgId: string;
@@ -24,8 +30,8 @@ export class AuditService {
         entity: params.entity,
         entityId: params.entityId,
         caseId: params.caseId,
-        before: params.before ?? undefined,
-        after: params.after ?? undefined,
+        before: this.toJson(params.before),
+        after: this.toJson(params.after),
         reason: params.reason ?? undefined
       }
     });
