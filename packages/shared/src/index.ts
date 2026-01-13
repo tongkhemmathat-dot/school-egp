@@ -39,6 +39,13 @@ export type AuditAction = z.infer<typeof AuditAction>;
 export const OrganizationSchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1),
+  address: z.string().optional().nullable(),
+  affiliation: z.string().optional().nullable(),
+  studentCount: z.number().int().optional().nullable(),
+  officerName: z.string().optional().nullable(),
+  headOfficerName: z.string().optional().nullable(),
+  financeOfficerName: z.string().optional().nullable(),
+  directorName: z.string().optional().nullable(),
   createdAt: z.string().datetime().optional()
 });
 export type Organization = z.infer<typeof OrganizationSchema>;
@@ -56,10 +63,16 @@ export type User = z.infer<typeof UserSchema>;
 export const VendorSchema = z.object({
   id: z.string().uuid(),
   orgId: z.string().uuid(),
+  code: z.string().optional().nullable(),
   name: z.string().min(1),
   taxId: z.string().optional().nullable(),
+  citizenId: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
-  phone: z.string().optional().nullable()
+  phone: z.string().optional().nullable(),
+  bankAccount: z.string().optional().nullable(),
+  bankAccountName: z.string().optional().nullable(),
+  bankName: z.string().optional().nullable(),
+  bankBranch: z.string().optional().nullable()
 });
 export type Vendor = z.infer<typeof VendorSchema>;
 
@@ -210,7 +223,16 @@ export const LoginRequestSchema = z.object({
   password: z.string().min(1)
 });
 
-export const CreateOrganizationSchema = z.object({ name: z.string().min(1) });
+export const CreateOrganizationSchema = z.object({
+  name: z.string().min(1),
+  address: z.string().optional().nullable(),
+  affiliation: z.string().optional().nullable(),
+  studentCount: z.number().int().optional().nullable(),
+  officerName: z.string().optional().nullable(),
+  headOfficerName: z.string().optional().nullable(),
+  financeOfficerName: z.string().optional().nullable(),
+  directorName: z.string().optional().nullable()
+});
 export const UpdateOrganizationSchema = CreateOrganizationSchema.partial();
 
 export const CreateUserSchema = z.object({
@@ -225,10 +247,16 @@ export const UpdateUserSchema = z.object({
 });
 
 export const CreateVendorSchema = z.object({
+  code: z.string().optional().nullable(),
   name: z.string().min(1),
   taxId: z.string().optional().nullable(),
+  citizenId: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
-  phone: z.string().optional().nullable()
+  phone: z.string().optional().nullable(),
+  bankAccount: z.string().optional().nullable(),
+  bankAccountName: z.string().optional().nullable(),
+  bankName: z.string().optional().nullable(),
+  bankBranch: z.string().optional().nullable()
 });
 export const UpdateVendorSchema = CreateVendorSchema.partial();
 

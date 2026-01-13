@@ -71,6 +71,13 @@ enum AuditAction {
 model Organization {
   id        String   @id @default(uuid())
   name      String
+  address   String?
+  affiliation String?
+  studentCount Int?
+  officerName String?
+  headOfficerName String?
+  financeOfficerName String?
+  directorName String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   users     User[]
@@ -106,10 +113,16 @@ model User {
 model Vendor {
   id        String   @id @default(uuid())
   orgId     String
+  code      String?
   name      String
   taxId     String?
+  citizenId String?
   address   String?
   phone     String?
+  bankAccount String?
+  bankAccountName String?
+  bankName  String?
+  bankBranch String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   organization Organization @relation(fields: [orgId], references: [id])

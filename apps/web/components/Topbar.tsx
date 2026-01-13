@@ -14,6 +14,12 @@ export default function Topbar() {
   const title =
     pathname.startsWith("/reports")
       ? "ทะเบียนคุมจัดซื้อ/จัดจ้าง"
+      : pathname.startsWith("/school-info")
+        ? "รายละเอียดโรงเรียน"
+        : pathname.startsWith("/staff")
+          ? "บุคลากรโรงเรียน"
+          : pathname.startsWith("/contractors")
+            ? "ข้อมูลผู้รับจ้าง"
       : pathname.startsWith("/cases")
         ? "แฟ้มงานจัดซื้อ/จัดจ้าง"
         : pathname.startsWith("/inventory")

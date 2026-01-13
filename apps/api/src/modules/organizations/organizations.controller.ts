@@ -34,16 +34,69 @@ export class OrganizationsController {
 
   @Post("organizations")
   @Roles("Admin")
-  createOrg(@Req() req: any, @Body() body: { name: string }) {
+  createOrg(
+    @Req() req: any,
+    @Body()
+    body: {
+      name: string;
+      address?: string;
+      affiliation?: string;
+      studentCount?: number;
+      officerName?: string;
+      headOfficerName?: string;
+      financeOfficerName?: string;
+      directorName?: string;
+    }
+  ) {
     const payload = parseSchema(CreateOrganizationSchema, body);
     return this.orgs.createOrg(req.user.sub, payload, getRequestMeta(req));
   }
 
   @Patch("organizations/:id")
   @Roles("Admin")
-  updateOrg(@Req() req: any, @Param("id") id: string, @Body() body: { name?: string }) {
+  updateOrg(
+    @Req() req: any,
+    @Param("id") id: string,
+    @Body()
+    body: {
+      name?: string;
+      address?: string;
+      affiliation?: string;
+      studentCount?: number;
+      officerName?: string;
+      headOfficerName?: string;
+      financeOfficerName?: string;
+      directorName?: string;
+    }
+  ) {
     const payload = parseSchema(UpdateOrganizationSchema, body);
     return this.orgs.updateOrg(id, req.user.sub, payload, getRequestMeta(req));
+  }
+
+  @Get("organization")
+  @Roles("Admin", "ProcurementOfficer")
+  getCurrentOrg(@Req() req: any) {
+    return this.orgs.getOrg(req.user.orgId);
+  }
+
+  @Patch("organization")
+  @Roles("Admin", "ProcurementOfficer")
+  updateCurrentOrg(
+    @Req() req: any,
+    @Body()
+    body: {
+      name?: string;
+      address?: string;
+      affiliation?: string;
+      studentCount?: number;
+      officerName?: string;
+      headOfficerName?: string;
+      financeOfficerName?: string;
+      directorName?: string;
+    }
+  ) {
+    const payload = parseSchema(UpdateOrganizationSchema, body);
+    return this.orgs.updateOrg(req.user.orgId, req.user.sub, payload, getRequestMeta(req));
   }
 
   @Delete("organizations/:id")
@@ -92,14 +145,45 @@ export class OrganizationsController {
 
   @Post("vendors")
   @Roles("Admin", "ProcurementOfficer")
-  createVendor(@Req() req: any, @Body() body: { name: string }) {
+  createVendor(
+    @Req() req: any,
+    @Body()
+    body: {
+      code?: string;
+      name: string;
+      taxId?: string;
+      citizenId?: string;
+      address?: string;
+      phone?: string;
+      bankAccount?: string;
+      bankAccountName?: string;
+      bankName?: string;
+      bankBranch?: string;
+    }
+  ) {
     const payload = parseSchema(CreateVendorSchema, body);
     return this.orgs.createVendor(req.user.orgId, req.user.sub, payload, getRequestMeta(req));
   }
 
   @Patch("vendors/:id")
   @Roles("Admin", "ProcurementOfficer")
-  updateVendor(@Req() req: any, @Param("id") id: string, @Body() body: { name?: string }) {
+  updateVendor(
+    @Req() req: any,
+    @Param("id") id: string,
+    @Body()
+    body: {
+      code?: string;
+      name?: string;
+      taxId?: string;
+      citizenId?: string;
+      address?: string;
+      phone?: string;
+      bankAccount?: string;
+      bankAccountName?: string;
+      bankName?: string;
+      bankBranch?: string;
+    }
+  ) {
     const payload = parseSchema(UpdateVendorSchema, body);
     return this.orgs.updateVendor(req.user.orgId, req.user.sub, id, payload, getRequestMeta(req));
   }

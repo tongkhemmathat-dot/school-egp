@@ -11,6 +11,9 @@ const navItems = [
   { label: "คลังวัสดุ", href: "/inventory/requisitions", roles: ["Admin", "ProcurementOfficer"] },
   { label: "ทะเบียนทรัพย์สิน", href: "/assets", roles: ["Admin", "ProcurementOfficer"] },
   { label: "รายงานทะเบียน", href: "/reports/procurement-register", roles: ["Admin", "ProcurementOfficer", "Approver", "Viewer"] },
+  { label: "รายละเอียดโรงเรียน", href: "/school-info", roles: ["Admin", "ProcurementOfficer"] },
+  { label: "บุคลากร", href: "/staff", roles: ["Admin", "ProcurementOfficer"] },
+  { label: "ผู้รับจ้าง", href: "/contractors", roles: ["Admin", "ProcurementOfficer"] },
   { label: "ผู้ดูแลระบบ", href: "/admin", roles: ["Admin"] }
 ];
 

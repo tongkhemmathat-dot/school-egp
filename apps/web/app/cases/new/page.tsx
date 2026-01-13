@@ -136,7 +136,9 @@ export default function NewCasePage() {
     citizenId: "",
     taxId: "",
     bank: "",
-    bankAccount: ""
+    bankAccount: "",
+    bankAccountName: "",
+    bankBranch: ""
   });
 
   const [documentDates, setDocumentDates] = useState({
@@ -149,10 +151,21 @@ export default function NewCasePage() {
 
   useEffect(() => {
     let active = true;
-    apiFetch<Vendor[]>("admin/vendors")
-      .then((data) => {
+    Promise.all([apiFetch<Vendor[]>("admin/vendors"), apiFetch("admin/organization")])
+      .then(([vendorData, orgData]) => {
         if (!active) return;
-        setVendors(data);
+        setVendors(vendorData);
+        setSchoolInfo((prev) => ({
+          ...prev,
+          name: (orgData as any)?.name || prev.name,
+          address: (orgData as any)?.address || prev.address,
+          affiliation: (orgData as any)?.affiliation || prev.affiliation,
+          studentCount: (orgData as any)?.studentCount?.toString() || prev.studentCount,
+          officer: (orgData as any)?.officerName || prev.officer,
+          headOfficer: (orgData as any)?.headOfficerName || prev.headOfficer,
+          financeOfficer: (orgData as any)?.financeOfficerName || prev.financeOfficer,
+          director: (orgData as any)?.directorName || prev.director
+        }));
       })
       .catch(() => undefined);
     return () => {
@@ -187,7 +200,9 @@ export default function NewCasePage() {
         taxId: "",
         citizenId: "",
         bank: "",
-        bankAccount: ""
+        bankAccount: "",
+        bankAccountName: "",
+        bankBranch: ""
       }));
       return;
     }
@@ -198,8 +213,10 @@ export default function NewCasePage() {
       phone: match.phone || "",
       taxId: match.taxId || "",
       citizenId: "",
-      bank: "",
-      bankAccount: ""
+      bank: match.bankName || "",
+      bankAccount: match.bankAccount || "",
+      bankAccountName: match.bankAccountName || "",
+      bankBranch: match.bankBranch || ""
     }));
   }, [contractor.vendorId, vendors]);
 
@@ -492,8 +509,10 @@ export default function NewCasePage() {
                     ["เบอร์โทร", "phone"],
                     ["เลขบัตรประชาชน", "citizenId"],
                     ["เลขผู้เสียภาษี", "taxId"],
+                    ["เลขที่บัญชีธนาคาร", "bankAccount"],
+                    ["ชื่อบัญชี", "bankAccountName"],
                     ["ธนาคาร", "bank"],
-                    ["เลขบัญชี", "bankAccount"]
+                    ["สาขา", "bankBranch"]
                   ].map(([label, key]) => (
                     <div key={label}>
                       <label className="excel-label">{label}</label>
@@ -822,8 +841,10 @@ export default function NewCasePage() {
                   ["เบอร์โทร", contractor.phone],
                   ["เลขบัตรประชาชน", contractor.citizenId],
                   ["เลขผู้เสียภาษี", contractor.taxId],
+                  ["เลขที่บัญชีธนาคาร", contractor.bankAccount],
+                  ["ชื่อบัญชี", contractor.bankAccountName],
                   ["ธนาคาร", contractor.bank],
-                  ["เลขบัญชี", contractor.bankAccount]
+                  ["สาขา", contractor.bankBranch]
                 ].map(([label, value]) => (
                   <div key={label}>
                     <label className="excel-label">{label}</label>

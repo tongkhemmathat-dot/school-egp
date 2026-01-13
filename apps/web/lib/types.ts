@@ -12,9 +12,15 @@ export type User = ApiUser;
 export type Vendor = {
   id: string;
   name: string;
+  code?: string | null;
   address?: string | null;
   phone?: string | null;
   taxId?: string | null;
+  citizenId?: string | null;
+  bankAccount?: string | null;
+  bankAccountName?: string | null;
+  bankName?: string | null;
+  bankBranch?: string | null;
 };
 
 export type CaseLine = {
@@ -103,6 +109,13 @@ export type Organization = {
   id: string;
   name: string;
   createdAt: string;
+  address?: string | null;
+  affiliation?: string | null;
+  studentCount?: number | null;
+  officerName?: string | null;
+  headOfficerName?: string | null;
+  financeOfficerName?: string | null;
+  directorName?: string | null;
 };
 
 export type Unit = {

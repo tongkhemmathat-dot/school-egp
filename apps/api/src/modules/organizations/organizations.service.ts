@@ -12,8 +12,38 @@ export class OrganizationsService {
     return this.prisma.organization.findMany({ orderBy: { createdAt: "desc" } });
   }
 
-  async createOrg(userId: string, data: { name: string }, meta?: { ip?: string | null; userAgent?: string | null }) {
-    const org = await this.prisma.organization.create({ data: { name: data.name } });
+  async getOrg(orgId: string) {
+    const org = await this.prisma.organization.findUnique({ where: { id: orgId } });
+    if (!org) throw new NotFoundException("Organization not found");
+    return org;
+  }
+
+  async createOrg(
+    userId: string,
+    data: {
+      name: string;
+      address?: string | null;
+      affiliation?: string | null;
+      studentCount?: number | null;
+      officerName?: string | null;
+      headOfficerName?: string | null;
+      financeOfficerName?: string | null;
+      directorName?: string | null;
+    },
+    meta?: { ip?: string | null; userAgent?: string | null }
+  ) {
+    const org = await this.prisma.organization.create({
+      data: {
+        name: data.name,
+        address: data.address ?? null,
+        affiliation: data.affiliation ?? null,
+        studentCount: data.studentCount ?? null,
+        officerName: data.officerName ?? null,
+        headOfficerName: data.headOfficerName ?? null,
+        financeOfficerName: data.financeOfficerName ?? null,
+        directorName: data.directorName ?? null
+      }
+    });
     await this.audit.record({
       orgId: org.id,
       userId,
@@ -30,7 +60,16 @@ export class OrganizationsService {
   async updateOrg(
     orgId: string,
     userId: string,
-    data: { name?: string },
+    data: {
+      name?: string;
+      address?: string | null;
+      affiliation?: string | null;
+      studentCount?: number | null;
+      officerName?: string | null;
+      headOfficerName?: string | null;
+      financeOfficerName?: string | null;
+      directorName?: string | null;
+    },
     meta?: { ip?: string | null; userAgent?: string | null }
   ) {
     const before = await this.prisma.organization.findUnique({ where: { id: orgId } });
@@ -161,16 +200,33 @@ export class OrganizationsService {
   async createVendor(
     orgId: string,
     userId: string,
-    data: { name: string; taxId?: string | null; address?: string | null; phone?: string | null },
+    data: {
+      code?: string | null;
+      name: string;
+      taxId?: string | null;
+      citizenId?: string | null;
+      address?: string | null;
+      phone?: string | null;
+      bankAccount?: string | null;
+      bankAccountName?: string | null;
+      bankName?: string | null;
+      bankBranch?: string | null;
+    },
     meta?: { ip?: string | null; userAgent?: string | null }
   ) {
     const vendor = await this.prisma.vendor.create({
       data: {
         orgId,
+        code: data.code ?? null,
         name: data.name,
         taxId: data.taxId ?? null,
+        citizenId: data.citizenId ?? null,
         address: data.address ?? null,
-        phone: data.phone ?? null
+        phone: data.phone ?? null,
+        bankAccount: data.bankAccount ?? null,
+        bankAccountName: data.bankAccountName ?? null,
+        bankName: data.bankName ?? null,
+        bankBranch: data.bankBranch ?? null
       }
     });
     await this.audit.record({
@@ -190,7 +246,18 @@ export class OrganizationsService {
     orgId: string,
     userId: string,
     vendorId: string,
-    data: { name?: string; taxId?: string | null; address?: string | null; phone?: string | null },
+    data: {
+      code?: string | null;
+      name?: string;
+      taxId?: string | null;
+      citizenId?: string | null;
+      address?: string | null;
+      phone?: string | null;
+      bankAccount?: string | null;
+      bankAccountName?: string | null;
+      bankName?: string | null;
+      bankBranch?: string | null;
+    },
     meta?: { ip?: string | null; userAgent?: string | null }
   ) {
     const before = await this.prisma.vendor.findFirst({ where: { id: vendorId, orgId } });
