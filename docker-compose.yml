@@ -25,7 +25,6 @@ services:
       - converter
     volumes:
       - data-store:/data
-      - ./:/app
   web:
     build:
       context: .
@@ -44,7 +43,6 @@ services:
       - "5000:5000"
     volumes:
       - data-store:/data
-      - ./:/app
 volumes:
   db-data:
   data-store:
