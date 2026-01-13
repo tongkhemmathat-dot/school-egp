@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { clearAuth, getUser } from "../lib/api";
+import { useEffect, useState } from "react";
+import { clearAuth, clearRedirectPath, getUser } from "../lib/api";
 import type { ApiUser } from "../lib/types";
 
 const navItems = [
@@ -22,22 +22,19 @@ export default function Sidebar() {
     setUser(getUser());
   }, []);
 
+  const items = navItems.map((item) => ({
+    ...item,
+    active: pathname === item.href || pathname.startsWith(`${item.href}/`)
+  }));
+
   if (pathname === "/login") {
     return null;
   }
 
-  const items = useMemo(
-    () =>
-      navItems.map((item) => ({
-        ...item,
-        active: pathname === item.href || pathname.startsWith(`${item.href}/`)
-      })),
-    [pathname]
-  );
-
   const handleLogout = () => {
     clearAuth();
-    router.push("/login");
+    clearRedirectPath();
+    router.replace("/login");
   };
 
   return (

@@ -2,6 +2,7 @@ import type { ApiUser } from "./types";
 
 const TOKEN_KEY = "school-egp.token";
 const USER_KEY = "school-egp.user";
+const REDIRECT_KEY = "school-egp.redirect";
 
 export function getApiBase() {
   if (typeof window !== "undefined") {
@@ -43,6 +44,21 @@ export function clearAuth() {
   window.localStorage.removeItem(USER_KEY);
 }
 
+export function setRedirectPath(path: string) {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(REDIRECT_KEY, path);
+}
+
+export function getRedirectPath() {
+  if (typeof window === "undefined") return null;
+  return window.sessionStorage.getItem(REDIRECT_KEY);
+}
+
+export function clearRedirectPath() {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(REDIRECT_KEY);
+}
+
 type ApiFetchOptions = RequestInit & {
   noAuth?: boolean;
 };
@@ -79,6 +95,9 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
     if (response.status === 401) {
       clearAuth();
       if (typeof window !== "undefined") {
+        if (window.location.pathname !== "/login") {
+          setRedirectPath(window.location.pathname);
+        }
         window.location.assign("/login");
       }
     }

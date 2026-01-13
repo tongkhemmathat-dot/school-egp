@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { getToken } from "../lib/api";
+import { getRedirectPath, getToken, setRedirectPath } from "../lib/api";
 
 export default function AuthGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -13,11 +13,13 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     const token = getToken();
     if (pathname === "/login") {
       if (token) {
-        router.replace("/dashboard");
+        const target = getRedirectPath() || "/dashboard";
+        router.replace(target);
       }
       return;
     }
     if (!token) {
+      setRedirectPath(pathname);
       router.replace("/login");
     }
   }, [pathname, router]);

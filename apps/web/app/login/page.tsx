@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch, setAuth } from "../../lib/api";
+import { apiFetch, clearRedirectPath, getRedirectPath, setAuth } from "../../lib/api";
 import type { ApiUser } from "../../lib/types";
 
 type LoginResponse = {
@@ -28,7 +28,9 @@ export default function LoginPage() {
         noAuth: true
       });
       setAuth(data.accessToken, data.user);
-      router.push("/dashboard");
+      const target = getRedirectPath();
+      clearRedirectPath();
+      router.replace(target && target !== "/login" ? target : "/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
