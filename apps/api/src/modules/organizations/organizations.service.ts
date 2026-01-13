@@ -25,14 +25,15 @@ export class OrganizationsService {
         role: data.role
       }
     });
+    const { passwordHash, ...safeUser } = user;
     await this.audit.record({
       orgId,
       userId,
       action: "create",
       entity: "user",
       entityId: user.id,
-      after: user
+      after: safeUser
     });
-    return user;
+    return safeUser;
   }
 }
