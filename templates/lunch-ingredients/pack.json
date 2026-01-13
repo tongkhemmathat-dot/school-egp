@@ -1,0 +1,11 @@
+{
+  "id": "lunch-ingredients",
+  "name_th": "ซื้อวัตถุดิบ",
+  "caseType": "LUNCH",
+  "subtype": "INGREDIENTS",
+  "inputCells": [
+    { "key": "school_name", "sheet": "Setting", "cell": "B4" }
+  ],
+  "outputSheets": ["Page1"],
+  "pdfMode": "singlePdf"
+}

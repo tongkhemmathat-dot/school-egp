@@ -7,18 +7,88 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  Admin
+  ProcurementOfficer
+  Approver
+  Viewer
+}
+
+enum CaseType {
+  PURCHASE
+  HIRE
+  LUNCH
+  INTERNET
+}
+
+enum CaseSubtype {
+  PREPARED
+  INGREDIENTS
+  INGREDIENTS_COOK
+  LEASE
+  PURCHASE
+}
+
+enum CaseStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+enum ApprovalAction {
+  SUBMIT
+  APPROVE
+  REJECT
+}
+
+enum StockTransactionType {
+  IN
+  OUT
+}
+
+enum DocumentFileType {
+  PDF
+  ZIP
+}
+
+enum DepreciationMethod {
+  STRAIGHT_LINE
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  GENERATE
+  APPROVE
+  SUBMIT
+  REJECT
+  OVERRIDE
+}
+
 model Organization {
   id        String   @id @default(uuid())
   name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   users     User[]
+  vendors   Vendor[]
+  units     Unit[]
+  categories Category[]
+  items     Item[]
+  warehouses Warehouse[]
   cases     ProcurementCase[]
+  caseLines CaseLine[]
   documents Document[]
   auditLogs AuditLog[]
   assets    Asset[]
   stocks    StockTransaction[]
   requisitions MaterialRequisition[]
+  depreciationPolicies DepreciationPolicy[]
+  templatePacks TemplatePack[]
+  runningNumbers DocumentRunningNumber[]
 }
 
 model User {
@@ -27,25 +97,194 @@ model User {
   name         String
   email        String   @unique
   passwordHash String
-  role         String
+  role         Role
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   organization Organization @relation(fields: [orgId], references: [id])
+}
+
+model Vendor {
+  id        String   @id @default(uuid())
+  orgId     String
+  name      String
+  taxId     String?
+  address   String?
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [orgId], references: [id])
+  cases     ProcurementCase[]
+}
+
+model Unit {
+  id     String @id @default(uuid())
+  orgId  String
+  name   String
+  organization Organization @relation(fields: [orgId], references: [id])
+  items  Item[]
+}
+
+model Category {
+  id     String @id @default(uuid())
+  orgId  String
+  name   String
+  organization Organization @relation(fields: [orgId], references: [id])
+  items  Item[]
+}
+
+model Item {
+  id        String   @id @default(uuid())
+  orgId     String
+  name      String
+  sku       String?
+  unitId    String
+  categoryId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [orgId], references: [id])
+  unit      Unit @relation(fields: [unitId], references: [id])
+  category  Category? @relation(fields: [categoryId], references: [id])
+  stocks    StockTransaction[]
+  requisitionLines MaterialRequisitionLine[]
+  caseLines CaseLine[]
+}
+
+model Warehouse {
+  id        String   @id @default(uuid())
+  orgId     String
+  name      String
+  location  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [orgId], references: [id])
+  stocks    StockTransaction[]
+  requisitions MaterialRequisition[]
+}
+
+model StockTransaction {
+  id              String   @id @default(uuid())
+  orgId           String
+  itemId          String
+  warehouseId     String
+  transactionType StockTransactionType
+  quantity        Int
+  referenceType   String?
+  referenceId     String?
+  createdAt       DateTime @default(now())
+  organization Organization @relation(fields: [orgId], references: [id])
+  item          Item @relation(fields: [itemId], references: [id])
+  warehouse     Warehouse @relation(fields: [warehouseId], references: [id])
+}
+
+model MaterialRequisition {
+  id            String   @id @default(uuid())
+  orgId         String
+  requesterId   String?
+  requesterName String
+  warehouseId   String
+  status        String   @default("DRAFT")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  organization  Organization @relation(fields: [orgId], references: [id])
+  warehouse     Warehouse @relation(fields: [warehouseId], references: [id])
+  lines         MaterialRequisitionLine[]
+}
+
+model MaterialRequisitionLine {
+  id             String   @id @default(uuid())
+  requisitionId  String
+  itemId         String
+  quantity       Int
+  requisition    MaterialRequisition @relation(fields: [requisitionId], references: [id])
+  item           Item @relation(fields: [itemId], references: [id])
+}
+
+model Asset {
+  id              String   @id @default(uuid())
+  orgId           String
+  name            String
+  assetCode       String
+  acquisitionDate DateTime
+  cost            Float
+  salvageValue    Float
+  usefulLifeMonths Int
+  policyId        String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  organization    Organization @relation(fields: [orgId], references: [id])
+  policy          DepreciationPolicy @relation(fields: [policyId], references: [id])
+  depreciationLines DepreciationLine[]
+}
+
+model DepreciationPolicy {
+  id        String   @id @default(uuid())
+  orgId     String
+  name      String
+  method    DepreciationMethod @default(STRAIGHT_LINE)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [orgId], references: [id])
+  assets    Asset[]
+}
+
+model DepreciationLine {
+  id         String   @id @default(uuid())
+  assetId    String
+  periodDate DateTime
+  amount     Float
+  accumulated Float
+  bookValue  Float
+  asset      Asset @relation(fields: [assetId], references: [id])
 }
 
 model ProcurementCase {
   id             String   @id @default(uuid())
   orgId          String
   title          String
-  caseType       String
-  status         String   @default("DRAFT")
+  reason         String?
+  caseType       CaseType
+  subtype        CaseSubtype?
+  status         CaseStatus @default(DRAFT)
+  budgetAmount   Float
+  fiscalYear     Int
+  desiredDate    DateTime?
+  vendorId       String?
   isBackdated    Boolean  @default(false)
-  documentNumber String?
+  backdateReason String?
+  createdById    String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  organization   Organization @relation(fields: [orgId], references: [id])
+  vendor         Vendor? @relation(fields: [vendorId], references: [id])
+  lines          CaseLine[]
+  approvals      CaseApproval[]
   documents      Document[]
   auditLogs      AuditLog[]
-  organization   Organization @relation(fields: [orgId], references: [id])
+}
+
+model CaseLine {
+  id          String @id @default(uuid())
+  orgId       String
+  caseId      String
+  description String
+  itemId      String?
+  quantity    Float
+  unitPrice   Float
+  total       Float
+  procurementCase ProcurementCase @relation(fields: [caseId], references: [id])
+  item        Item? @relation(fields: [itemId], references: [id])
+  organization Organization @relation(fields: [orgId], references: [id])
+}
+
+model CaseApproval {
+  id        String   @id @default(uuid())
+  caseId    String
+  actorId   String
+  action    ApprovalAction
+  comment   String?
+  createdAt DateTime @default(now())
+  procurementCase ProcurementCase @relation(fields: [caseId], references: [id])
 }
 
 model Document {
@@ -53,57 +292,57 @@ model Document {
   orgId          String
   caseId         String
   templatePackId String
+  documentType   String
+  fileType       DocumentFileType
   fileName       String
   filePath       String
+  runningNumber  String?
+  manualNumber   String?
+  documentDate   DateTime?
   generatedAt    DateTime @default(now())
   organization   Organization @relation(fields: [orgId], references: [id])
-  case           ProcurementCase @relation(fields: [caseId], references: [id])
+  procurementCase ProcurementCase @relation(fields: [caseId], references: [id])
+}
+
+model DocumentRunningNumber {
+  id          String   @id @default(uuid())
+  orgId       String
+  fiscalYear  Int
+  documentType String
+  sequence    Int
+  updatedAt   DateTime @updatedAt
+  organization Organization @relation(fields: [orgId], references: [id])
+
+  @@unique([orgId, fiscalYear, documentType])
+}
+
+model TemplatePack {
+  id        String   @id @default(uuid())
+  orgId     String
+  packId    String
+  name      String
+  caseType  CaseType
+  subtype   CaseSubtype?
+  isActive  Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [orgId], references: [id])
 }
 
 model AuditLog {
   id        String   @id @default(uuid())
   orgId     String
   userId    String?
-  action    String
+  action    AuditAction
   entity    String
   entityId  String
   caseId    String?
   before    Json?
   after     Json?
   reason    String?
+  ip        String?
+  userAgent String?
   createdAt DateTime @default(now())
   organization Organization @relation(fields: [orgId], references: [id])
-  case          ProcurementCase? @relation(fields: [caseId], references: [id])
-}
-
-model StockTransaction {
-  id              String   @id @default(uuid())
-  orgId           String
-  materialCode    String
-  transactionType String
-  quantity        Int
-  referenceId     String?
-  createdAt       DateTime @default(now())
-  organization    Organization @relation(fields: [orgId], references: [id])
-}
-
-model MaterialRequisition {
-  id           String   @id @default(uuid())
-  orgId        String
-  materialCode String
-  quantity     Int
-  requester    String
-  createdAt    DateTime @default(now())
-  organization Organization @relation(fields: [orgId], references: [id])
-}
-
-model Asset {
-  id             String   @id @default(uuid())
-  orgId          String
-  name           String
-  cost           Float
-  acquiredDate   DateTime
-  usefulLifeYears Int
-  createdAt      DateTime @default(now())
-  organization   Organization @relation(fields: [orgId], references: [id])
+  procurementCase ProcurementCase? @relation(fields: [caseId], references: [id])
 }

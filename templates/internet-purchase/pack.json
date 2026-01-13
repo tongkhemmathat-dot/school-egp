@@ -1,0 +1,11 @@
+{
+  "id": "internet-purchase",
+  "name_th": "ซื้ออินเทอร์เน็ต",
+  "caseType": "INTERNET",
+  "subtype": "PURCHASE",
+  "inputCells": [
+    { "key": "school_name", "sheet": "Setting", "cell": "B4" }
+  ],
+  "outputSheets": ["Page1"],
+  "pdfMode": "singlePdf"
+}

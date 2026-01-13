@@ -1,0 +1,11 @@
+{
+  "id": "lunch-ingredients-cook",
+  "name_th": "ซื้อวัตถุดิบ + จ้างแม่ครัว",
+  "caseType": "LUNCH",
+  "subtype": "INGREDIENTS_COOK",
+  "inputCells": [
+    { "key": "school_name", "sheet": "Setting", "cell": "B4" }
+  ],
+  "outputSheets": ["Page1"],
+  "pdfMode": "singlePdf"
+}
