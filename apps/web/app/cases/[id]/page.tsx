@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { apiFetch } from "../../../lib/api";
+import { apiFetch, getApiBase } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth";
 import type {
   AuditLog,
@@ -208,8 +208,9 @@ export default function CaseDetailPage() {
   };
 
   const handleDownload = async (docId: string, filename: string) => {
+    const apiBase = getApiBase();
     const apiResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"}/documents/${docId}/download`,
+      `${apiBase}/documents/${docId}/download`,
       {
         credentials: "include"
       }
@@ -231,7 +232,8 @@ export default function CaseDetailPage() {
 
   const handleDownloadZip = async () => {
     if (!caseId) return;
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"}/cases/${caseId}/documents/download-zip`, {
+    const apiBase = getApiBase();
+    const response = await fetch(`${apiBase}/cases/${caseId}/documents/download-zip`, {
       credentials: "include"
     });
     if (!response.ok) {

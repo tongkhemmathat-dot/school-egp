@@ -11,7 +11,7 @@ body {
 :root {
   --excel-grid: rgba(36, 36, 36, 0.08);
   --excel-border: #d7d2c0;
-  --excel-panel: #fffdf4;
+  --excel-panel: #ffffff;
   --excel-ink: #1f2937;
   --excel-muted: #6b7280;
   --excel-yellow: #fff3a6;
@@ -19,6 +19,7 @@ body {
   --excel-red: #f9d2d2;
   --excel-accent: #1f7a5e;
   --excel-accent-strong: #11503f;
+  --excel-purple: #5c3b8c;
 }
 
 .excel-grid {
@@ -98,4 +99,12 @@ body {
   font-size: 0.75rem;
   color: var(--excel-muted);
   background: #fff;
+}
+
+.excel-instruction {
+  background: var(--excel-purple);
+  color: #f8f5ff;
+  border-radius: 12px;
+  padding: 1rem;
+  font-size: 0.9rem;
 }

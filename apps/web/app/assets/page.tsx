@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { apiFetch } from "../../lib/api";
+import { apiFetch, getApiBase } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import type { Asset, DepreciationPolicy } from "../../lib/types";
 
@@ -144,6 +144,8 @@ export default function AssetsPage() {
     }
   };
 
+  const exportUrl = `${getApiBase()}/assets/register/export`;
+
   return (
     <div>
       <h2 className="text-2xl font-semibold">Assets</h2>
@@ -151,12 +153,12 @@ export default function AssetsPage() {
         <div className="rounded-lg bg-white p-4 shadow lg:col-span-2">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold">Asset Register</h3>
-            <a
-              className="rounded border px-3 py-2 text-sm"
-              href={`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"}/assets/register/export`}
-              target="_blank"
-              rel="noreferrer"
-            >
+              <a
+                className="rounded border px-3 py-2 text-sm"
+                href={exportUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
               Export XLSX
             </a>
           </div>

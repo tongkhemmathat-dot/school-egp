@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { apiFetch } from "../../../lib/api";
+import { apiFetch, getApiBase } from "../../../lib/api";
 import type { Asset } from "../../../lib/types";
 
 const tabs = ["summary", "depreciation"] as const;
@@ -22,8 +22,9 @@ export default function AssetDetailPage() {
   }, [assetId]);
 
   const handleExport = async () => {
+    const apiBase = getApiBase();
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"}/assets/${assetId}/depreciation/export`,
+      `${apiBase}/assets/${assetId}/depreciation/export`,
       { credentials: "include" }
     );
     if (!response.ok) {

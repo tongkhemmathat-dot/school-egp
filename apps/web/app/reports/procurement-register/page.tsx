@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Vendor } from "../../../lib/types";
-import { apiFetch } from "../../../lib/api";
+import { apiFetch, getApiBase } from "../../../lib/api";
 
 const statusOptions = ["DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "COMPLETED"];
 
@@ -38,7 +38,8 @@ export default function ProcurementRegisterReport() {
       if (filters.from) params.set("from", filters.from);
       if (filters.to) params.set("to", filters.to);
       if (filters.fiscalYear) params.set("fiscalYear", filters.fiscalYear);
-      const url = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"}/reports/procurement-register?${params.toString()}`;
+      const apiBase = getApiBase();
+      const url = `${apiBase}/reports/procurement-register?${params.toString()}`;
       const response = await fetch(url, { credentials: "include" });
       if (!response.ok) {
         throw new Error("Failed to export report");

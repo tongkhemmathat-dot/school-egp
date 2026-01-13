@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { apiFetch } from "../../../lib/api";
+import { apiFetch, getApiBase } from "../../../lib/api";
 import type { Item, StockCardRow, Warehouse } from "../../../lib/types";
 
 export default function StockCardPage() {
@@ -62,6 +62,7 @@ export default function StockCardPage() {
       setError("Please select item and warehouse");
       return;
     }
+    const apiBase = getApiBase();
     const params = new URLSearchParams({
       itemId: filters.itemId,
       warehouseId: filters.warehouseId
@@ -69,7 +70,7 @@ export default function StockCardPage() {
     if (filters.from) params.set("from", filters.from);
     if (filters.to) params.set("to", filters.to);
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"}/inventory/stock-card/export?${params.toString()}`,
+      `${apiBase}/inventory/stock-card/export?${params.toString()}`,
       { credentials: "include" }
     );
     if (!response.ok) {
