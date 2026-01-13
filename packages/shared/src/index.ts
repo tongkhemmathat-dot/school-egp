@@ -142,8 +142,7 @@ export const DocumentSchema = z.object({
 export type Document = z.infer<typeof DocumentSchema>;
 
 export const TemplatePackSchema = z.object({
-  id: z.string().uuid().optional(),
-  packId: z.string().min(1),
+  id: z.string().min(1),
   name_th: z.string().min(1),
   caseType: CaseType,
   subtype: CaseSubtype.optional().nullable(),
