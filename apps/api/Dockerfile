@@ -11,4 +11,6 @@ RUN npm run build
 WORKDIR /app/apps/api
 RUN DATABASE_URL=postgresql://postgres:postgres@db:5432/school_egp npm run prisma:generate
 RUN npm run build
+RUN chmod +x /app/apps/api/docker-entrypoint.sh
+ENTRYPOINT ["/app/apps/api/docker-entrypoint.sh"]
 CMD ["node", "dist/main.js"]
