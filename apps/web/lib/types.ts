@@ -12,6 +12,9 @@ export type User = ApiUser;
 export type Vendor = {
   id: string;
   name: string;
+  address?: string | null;
+  phone?: string | null;
+  taxId?: string | null;
 };
 
 export type CaseLine = {
