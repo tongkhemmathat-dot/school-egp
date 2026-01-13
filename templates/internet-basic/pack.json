@@ -1,0 +1,10 @@
+{
+  "id": "internet-basic",
+  "name_th": "ค่าอินเทอร์เน็ตโรงเรียน",
+  "caseType": "INTERNET",
+  "inputCells": [
+    { "key": "school_name", "sheet": "Setting", "cell": "B4" }
+  ],
+  "outputSheets": ["Page1"],
+  "pdfMode": "singlePdf"
+}

@@ -1,0 +1,50 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: school_egp
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/school_egp
+      JWT_SECRET: dev-secret
+      CONVERTER_URL: http://converter:5000
+      DATA_ROOT: /data
+    ports:
+      - "4000:4000"
+    depends_on:
+      - db
+      - converter
+    volumes:
+      - data-store:/data
+      - ./:/app
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+  converter:
+    build:
+      context: .
+      dockerfile: apps/converter/Dockerfile
+    ports:
+      - "5000:5000"
+    volumes:
+      - data-store:/data
+      - ./:/app
+volumes:
+  db-data:
+  data-store:

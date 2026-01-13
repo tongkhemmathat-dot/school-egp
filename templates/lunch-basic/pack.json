@@ -1,0 +1,10 @@
+{
+  "id": "lunch-basic",
+  "name_th": "โครงการอาหารกลางวัน",
+  "caseType": "LUNCH",
+  "inputCells": [
+    { "key": "school_name", "sheet": "Setting", "cell": "B4" }
+  ],
+  "outputSheets": ["Page1"],
+  "pdfMode": "singlePdf"
+}

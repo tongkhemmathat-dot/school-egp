@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+  cases     ProcurementCase[]
+  documents Document[]
+  auditLogs AuditLog[]
+  assets    Asset[]
+  stocks    StockTransaction[]
+  requisitions MaterialRequisition[]
+}
+
+model User {
+  id           String   @id @default(uuid())
+  orgId        String
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  organization Organization @relation(fields: [orgId], references: [id])
+}
+
+model ProcurementCase {
+  id             String   @id @default(uuid())
+  orgId          String
+  title          String
+  caseType       String
+  status         String   @default("DRAFT")
+  isBackdated    Boolean  @default(false)
+  documentNumber String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  documents      Document[]
+  auditLogs      AuditLog[]
+  organization   Organization @relation(fields: [orgId], references: [id])
+}
+
+model Document {
+  id             String   @id @default(uuid())
+  orgId          String
+  caseId         String
+  templatePackId String
+  fileName       String
+  filePath       String
+  generatedAt    DateTime @default(now())
+  organization   Organization @relation(fields: [orgId], references: [id])
+  case           ProcurementCase @relation(fields: [caseId], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  orgId     String
+  userId    String?
+  action    String
+  entity    String
+  entityId  String
+  before    Json?
+  after     Json?
+  reason    String?
+  createdAt DateTime @default(now())
+  organization Organization @relation(fields: [orgId], references: [id])
+}
+
+model StockTransaction {
+  id              String   @id @default(uuid())
+  orgId           String
+  materialCode    String
+  transactionType String
+  quantity        Int
+  referenceId     String?
+  createdAt       DateTime @default(now())
+  organization    Organization @relation(fields: [orgId], references: [id])
+}
+
+model MaterialRequisition {
+  id           String   @id @default(uuid())
+  orgId        String
+  materialCode String
+  quantity     Int
+  requester    String
+  createdAt    DateTime @default(now())
+  organization Organization @relation(fields: [orgId], references: [id])
+}
+
+model Asset {
+  id             String   @id @default(uuid())
+  orgId          String
+  name           String
+  cost           Float
+  acquiredDate   DateTime
+  usefulLifeYears Int
+  createdAt      DateTime @default(now())
+  organization   Organization @relation(fields: [orgId], references: [id])
+}
