@@ -53,6 +53,9 @@ export default function CaseDetailPage() {
     reason: "",
     documentDate: ""
   });
+  const [previewDoc, setPreviewDoc] = useState<DocumentRecord | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -111,6 +114,14 @@ export default function CaseDetailPage() {
       }))
     );
   }, [caseData]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        window.URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   useEffect(() => {
     if (!caseData || templates.length === 0) return;
@@ -249,6 +260,37 @@ export default function CaseDetailPage() {
     link.click();
     link.remove();
     window.URL.revokeObjectURL(url);
+  };
+
+  const handlePreview = async (doc: DocumentRecord) => {
+    if (doc.fileType !== "PDF") {
+      setActionError("เอกสารนี้ไม่รองรับการแสดงผลในเว็บ");
+      return;
+    }
+    setPreviewLoading(true);
+    setActionError(null);
+    try {
+      const apiBase = getApiBase();
+      const response = await fetch(`${apiBase}/documents/${doc.id}/download`, {
+        credentials: "include"
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load document");
+      }
+      const blob = await response.blob();
+      const nextUrl = window.URL.createObjectURL(blob);
+      setPreviewDoc(doc);
+      setPreviewUrl((prev) => {
+        if (prev) {
+          window.URL.revokeObjectURL(prev);
+        }
+        return nextUrl;
+      });
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "ไม่สามารถแสดงเอกสารได้");
+    } finally {
+      setPreviewLoading(false);
+    }
   };
 
   const handleApproval = async (action: "SUBMIT" | "APPROVE" | "REJECT") => {
@@ -592,9 +634,49 @@ export default function CaseDetailPage() {
                       ) : (
                         <span className="text-xs text-slate-400">ZIP bundle</span>
                       )}
+                      {doc.fileType === "PDF" ? (
+                        <button
+                          className="rounded border px-2 py-1 text-xs"
+                          onClick={() => handlePreview(doc)}
+                          type="button"
+                        >
+                          ดูเอกสาร
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                 ))
+              )}
+            </div>
+            <div className="mt-4 rounded border border-dashed border-slate-200 bg-slate-50 p-3">
+              <div className="flex items-center justify-between text-sm">
+                <div className="font-medium text-slate-700">ตัวอย่างเอกสาร</div>
+                {previewDoc ? (
+                  <button
+                    className="text-xs text-slate-500"
+                    type="button"
+                    onClick={() => {
+                      setPreviewDoc(null);
+                      setPreviewUrl((prev) => {
+                        if (prev) {
+                          window.URL.revokeObjectURL(prev);
+                        }
+                        return null;
+                      });
+                    }}
+                  >
+                    ปิดตัวอย่าง
+                  </button>
+                ) : null}
+              </div>
+              {previewLoading ? (
+                <p className="mt-3 text-sm text-slate-500">กำลังโหลดเอกสาร...</p>
+              ) : previewUrl ? (
+                <div className="mt-3 h-[70vh] w-full rounded border bg-white">
+                  <iframe className="h-full w-full" src={previewUrl} title={previewDoc?.fileName || "preview"} />
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-slate-500">เลือกเอกสาร PDF เพื่อแสดงตัวอย่าง</p>
               )}
             </div>
           </div>
