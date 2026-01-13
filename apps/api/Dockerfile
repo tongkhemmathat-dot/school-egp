@@ -1,4 +1,5 @@
-FROM node:20-alpine
+FROM node:20-bullseye
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package.json package-lock.json* ./
 COPY packages/shared/package.json ./packages/shared/package.json
