@@ -3,5 +3,99 @@
 @tailwind utilities;
 
 body {
-  font-family: "Inter", system-ui, sans-serif;
+  font-family: var(--font-body, "Sarabun", "TH Sarabun New", system-ui, sans-serif);
+  background: #f6f4ea;
+  color: #1f2937;
+}
+
+:root {
+  --excel-grid: rgba(36, 36, 36, 0.08);
+  --excel-border: #d7d2c0;
+  --excel-panel: #fffdf4;
+  --excel-ink: #1f2937;
+  --excel-muted: #6b7280;
+  --excel-yellow: #fff3a6;
+  --excel-green: #cdeedc;
+  --excel-red: #f9d2d2;
+  --excel-accent: #1f7a5e;
+  --excel-accent-strong: #11503f;
+}
+
+.excel-grid {
+  background-image: linear-gradient(to right, var(--excel-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--excel-grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.excel-panel {
+  background: var(--excel-panel);
+  border: 1px solid var(--excel-border);
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgba(17, 24, 39, 0.08);
+}
+
+.excel-title {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.excel-label {
+  font-size: 0.85rem;
+  color: var(--excel-muted);
+}
+
+.excel-hint {
+  font-size: 0.75rem;
+  color: var(--excel-muted);
+}
+
+.excel-input {
+  width: 100%;
+  border: 1px solid var(--excel-border);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  background: #ffffff;
+  color: var(--excel-ink);
+}
+
+.excel-input:focus {
+  outline: 2px solid rgba(31, 122, 94, 0.35);
+  outline-offset: 1px;
+}
+
+.excel-input-yellow {
+  background: var(--excel-yellow);
+}
+
+.excel-input-green {
+  background: var(--excel-green);
+}
+
+.excel-input-red {
+  background: var(--excel-red);
+  color: #7f1d1d;
+}
+
+.excel-button {
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+}
+
+.excel-button-primary {
+  background: var(--excel-accent);
+  color: #ffffff;
+}
+
+.excel-button-primary:hover {
+  background: var(--excel-accent-strong);
+}
+
+.excel-chip {
+  border-radius: 999px;
+  border: 1px solid var(--excel-border);
+  padding: 0.15rem 0.6rem;
+  font-size: 0.75rem;
+  color: var(--excel-muted);
+  background: #fff;
 }

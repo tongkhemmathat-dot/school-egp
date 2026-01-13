@@ -6,12 +6,12 @@ import { clearRedirectPath } from "../lib/api";
 import { useAuth } from "../lib/auth";
 
 const navItems = [
-  { label: "Dashboard", href: "/dashboard", roles: ["Admin", "ProcurementOfficer", "Approver", "Viewer"] },
-  { label: "Cases", href: "/cases", roles: ["Admin", "ProcurementOfficer", "Approver", "Viewer"] },
-  { label: "Inventory", href: "/inventory/requisitions", roles: ["Admin", "ProcurementOfficer"] },
-  { label: "Assets", href: "/assets", roles: ["Admin", "ProcurementOfficer"] },
-  { label: "Reports", href: "/reports/procurement-register", roles: ["Admin", "ProcurementOfficer", "Approver", "Viewer"] },
-  { label: "Admin", href: "/admin", roles: ["Admin"] }
+  { label: "แดชบอร์ด", href: "/dashboard", roles: ["Admin", "ProcurementOfficer", "Approver", "Viewer"] },
+  { label: "งานจัดซื้อ/จัดจ้าง", href: "/cases", roles: ["Admin", "ProcurementOfficer", "Approver", "Viewer"] },
+  { label: "คลังวัสดุ", href: "/inventory/requisitions", roles: ["Admin", "ProcurementOfficer"] },
+  { label: "ทะเบียนทรัพย์สิน", href: "/assets", roles: ["Admin", "ProcurementOfficer"] },
+  { label: "รายงานทะเบียน", href: "/reports/procurement-register", roles: ["Admin", "ProcurementOfficer", "Approver", "Viewer"] },
+  { label: "ผู้ดูแลระบบ", href: "/admin", roles: ["Admin"] }
 ];
 
 export default function Sidebar() {
@@ -40,17 +40,20 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className="w-64 bg-white shadow-lg">
+    <aside className="w-72 border-r border-[var(--excel-border)] bg-[#fffdf4]">
       <div className="p-6">
-        <h1 className="text-xl font-bold">ระบบพัสดุโรงเรียน</h1>
-        <p className="text-sm text-slate-500">Procurement MVP</p>
+        <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Workbook</p>
+        <h1 className="excel-title mt-2 text-xl">ระบบพัสดุโรงเรียน</h1>
+        <p className="text-xs text-slate-500">แบบฟอร์มเอกสารราชการ</p>
       </div>
       <nav className="space-y-1 px-4">
         {items.map((item) => (
           <Link
             key={item.href}
-            className={`block rounded px-3 py-2 ${
-              item.active ? "bg-slate-100 text-slate-900" : "hover:bg-slate-100"
+            className={`block rounded px-3 py-2 text-sm ${
+              item.active
+                ? "bg-[var(--excel-green)] font-semibold text-slate-900"
+                : "text-slate-700 hover:bg-[rgba(31,122,94,0.12)]"
             }`}
             href={item.href}
           >
@@ -58,21 +61,23 @@ export default function Sidebar() {
           </Link>
         ))}
       </nav>
-      <div className="mt-6 border-t px-4 py-4 text-sm text-slate-600">
+      <div className="mt-6 border-t border-[var(--excel-border)] px-4 py-4 text-sm text-slate-700">
         {user ? (
           <>
             <div className="font-semibold">{user.name}</div>
-            <div className="text-xs uppercase tracking-wide text-slate-400">{user.role}</div>
+            <div className="mt-1 inline-flex items-center gap-2">
+              <span className="excel-chip">{user.role}</span>
+            </div>
           </>
         ) : (
-          <div className="text-slate-400">Not signed in</div>
+          <div className="text-slate-400">ยังไม่ได้ลงชื่อเข้าใช้</div>
         )}
         <button
-          className="mt-3 w-full rounded border px-3 py-2 text-sm hover:bg-slate-50"
+          className="mt-3 w-full rounded border border-[var(--excel-border)] px-3 py-2 text-sm hover:bg-white"
           onClick={handleLogout}
           type="button"
         >
-          Logout
+          ออกจากระบบ
         </button>
       </div>
     </aside>
