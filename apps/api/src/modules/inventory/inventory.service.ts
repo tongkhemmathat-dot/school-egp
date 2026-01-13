@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import type { StockTransaction } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 
@@ -43,7 +44,7 @@ export class InventoryService {
   }
 
   async stockCard(orgId: string, materialCode: string) {
-    const transactions = await this.prisma.stockTransaction.findMany({
+    const transactions: StockTransaction[] = await this.prisma.stockTransaction.findMany({
       where: { orgId, materialCode },
       orderBy: { createdAt: "asc" }
     });

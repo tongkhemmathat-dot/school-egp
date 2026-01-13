@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Post, Req, UseGuards } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
+import type { Asset } from "@prisma/client";
 import { Roles, RolesGuard } from "../auth/roles.guard";
 import { AssetsService } from "./assets.service";
 
@@ -26,7 +27,9 @@ export class AssetsController {
   @Get(":id/depreciation")
   @Roles("Admin", "ProcurementOfficer", "Viewer")
   async depreciation(@Req() req: any, @Param("id") id: string) {
-    const asset = await this.assets.listAssets(req.user.orgId).then((assets) => assets.find((a) => a.id === id));
+    const asset = await this.assets
+      .listAssets(req.user.orgId)
+      .then((assets: Asset[]) => assets.find((a) => a.id === id));
     if (!asset) return [];
     return this.assets.depreciationSchedule(asset);
   }

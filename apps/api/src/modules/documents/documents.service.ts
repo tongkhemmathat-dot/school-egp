@@ -3,6 +3,7 @@ import path from "node:path";
 import { Injectable, NotFoundException } from "@nestjs/common";
 import ExcelJS from "exceljs";
 import archiver from "archiver";
+import type { Document } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { TemplatesService } from "../templates/templates.service";
 import { AuditService } from "../audit/audit.service";
@@ -73,7 +74,7 @@ export class DocumentsService {
 
     const conversion = await this.convertToPdf({ workbookPath, outputDir, pack });
 
-    const docs = await Promise.all(
+    const docs: Document[] = await Promise.all(
       conversion.files.map((filePath) =>
         this.prisma.document.create({
           data: {
