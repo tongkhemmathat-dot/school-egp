@@ -25,6 +25,7 @@ export class CasesService {
       action: "create",
       entity: "case",
       entityId: created.id,
+      caseId: created.id,
       after: created
     });
     return created;
@@ -45,6 +46,7 @@ export class CasesService {
       action: "update",
       entity: "case",
       entityId: id,
+      caseId: id,
       before,
       after: updated
     });

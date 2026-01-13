@@ -11,6 +11,7 @@ export class AuditService {
     action: string;
     entity: string;
     entityId: string;
+    caseId?: string;
     before?: Record<string, unknown> | null;
     after?: Record<string, unknown> | null;
     reason?: string | null;
@@ -22,6 +23,7 @@ export class AuditService {
         action: params.action,
         entity: params.entity,
         entityId: params.entityId,
+        caseId: params.caseId,
         before: params.before ?? undefined,
         after: params.after ?? undefined,
         reason: params.reason ?? undefined

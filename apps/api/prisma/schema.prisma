@@ -67,11 +67,13 @@ model AuditLog {
   action    String
   entity    String
   entityId  String
+  caseId    String?
   before    Json?
   after     Json?
   reason    String?
   createdAt DateTime @default(now())
   organization Organization @relation(fields: [orgId], references: [id])
+  case          ProcurementCase? @relation(fields: [caseId], references: [id])
 }
 
 model StockTransaction {

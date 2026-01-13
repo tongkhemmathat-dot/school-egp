@@ -95,6 +95,7 @@ export class DocumentsService {
       action: "generate",
       entity: "document",
       entityId: caseId,
+      caseId,
       after: { packId, files: conversion.files }
     });
 
@@ -134,6 +135,7 @@ export class DocumentsService {
       action: "override",
       entity: "document-number",
       entityId: caseId,
+      caseId,
       before,
       after: { documentNumber: newNumber },
       reason
