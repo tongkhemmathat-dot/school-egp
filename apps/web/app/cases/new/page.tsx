@@ -88,6 +88,7 @@ const toIsoDate = (parts: DateParts) => {
 export default function NewCasePage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
+  const [infoTab, setInfoTab] = useState<"school" | "staff" | "contractor">("school");
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +96,7 @@ export default function NewCasePage() {
   const [progressIndex, setProgressIndex] = useState(0);
   const [successMessage, setSuccessMessage] = useState("");
 
-  const [schoolInfo] = useState({
+  const [schoolInfo, setSchoolInfo] = useState({
     name: "รอการตั้งค่าระบบ",
     address: "รอการตั้งค่าระบบ",
     affiliation: "รอการตั้งค่าระบบ",
@@ -236,7 +237,9 @@ export default function NewCasePage() {
       if (!valid) return "กรุณากรอกข้อมูลให้ครบถ้วน";
     }
     if (current === 5) {
-      if (!contractor.vendorId) return "กรุณากรอกข้อมูลให้ครบถ้วน";
+      if (!contractor.vendorId && !contractor.name.trim()) {
+        return "กรุณากรอกข้อมูลให้ครบถ้วน";
+      }
     }
     if (current === 6) {
       const valid = Object.values(documentDates).every((date) => isDateComplete(date));
@@ -379,36 +382,133 @@ export default function NewCasePage() {
 
         {step === 2 ? (
           <div className="space-y-4">
-            <h3 className="excel-title text-lg">STEP 2: ข้อมูลโรงเรียน (อ่านอย่างเดียว)</h3>
-            <p className="excel-hint">ข้อมูลจากการตั้งค่าระบบ</p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <tbody>
-                  {[
-                    ["ชื่อโรงเรียน", schoolInfo.name],
-                    ["ที่อยู่", schoolInfo.address],
-                    ["สังกัด", schoolInfo.affiliation],
-                    ["จำนวนนักเรียน", schoolInfo.studentCount],
-                    ["เจ้าหน้าที่", schoolInfo.officer],
-                    ["หัวหน้าเจ้าหน้าที่", schoolInfo.headOfficer],
-                    ["เจ้าหน้าที่การเงิน", schoolInfo.financeOfficer],
-                    ["ผู้อำนวยการโรงเรียน", schoolInfo.director]
-                  ].map(([label, value]) => (
-                    <tr key={label} className="border-b border-[var(--excel-border)]">
-                      <td className="w-48 py-2 text-slate-600">{label}</td>
-                      <td className="py-2">
-                        <input
-                          className="excel-input excel-input-yellow"
-                          value={value}
-                          readOnly
-                          title="ข้อมูลจากการตั้งค่าระบบ"
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h3 className="excel-title text-lg">STEP 2: ข้อมูลโรงเรียนและบุคลากร</h3>
+              <p className="excel-hint">ข้อมูลจากการตั้งค่าระบบ (แก้ไขได้)</p>
             </div>
+            <div className="flex flex-wrap gap-2 text-sm">
+              {[
+                ["school", "ข้อมูลโรงเรียน"],
+                ["staff", "บุคลากร"],
+                ["contractor", "ข้อมูลผู้รับจ้าง"]
+              ].map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={`rounded border px-3 py-1 ${
+                    infoTab === key
+                      ? "border-[var(--excel-accent)] bg-[var(--excel-green)] font-semibold"
+                      : "border-[var(--excel-border)] bg-white text-slate-600"
+                  }`}
+                  onClick={() => setInfoTab(key as "school" | "staff" | "contractor")}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {infoTab === "school" ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <tbody>
+                    {[
+                      ["ชื่อโรงเรียน", "name"],
+                      ["ที่อยู่", "address"],
+                      ["สังกัด", "affiliation"],
+                      ["จำนวนนักเรียน", "studentCount"]
+                    ].map(([label, key]) => (
+                      <tr key={label} className="border-b border-[var(--excel-border)]">
+                        <td className="w-48 py-2 text-slate-600">{label}</td>
+                        <td className="py-2">
+                          <input
+                            className="excel-input excel-input-yellow"
+                            value={schoolInfo[key as keyof typeof schoolInfo]}
+                            onChange={(event) =>
+                              setSchoolInfo((prev) => ({ ...prev, [key]: event.target.value }))
+                            }
+                            title="ข้อมูลจากการตั้งค่าระบบ"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+
+            {infoTab === "staff" ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <tbody>
+                    {[
+                      ["เจ้าหน้าที่", "officer"],
+                      ["หัวหน้าเจ้าหน้าที่", "headOfficer"],
+                      ["เจ้าหน้าที่การเงิน", "financeOfficer"],
+                      ["ผู้อำนวยการโรงเรียน", "director"]
+                    ].map(([label, key]) => (
+                      <tr key={label} className="border-b border-[var(--excel-border)]">
+                        <td className="w-48 py-2 text-slate-600">{label}</td>
+                        <td className="py-2">
+                          <input
+                            className="excel-input excel-input-yellow"
+                            value={schoolInfo[key as keyof typeof schoolInfo]}
+                            onChange={(event) =>
+                              setSchoolInfo((prev) => ({ ...prev, [key]: event.target.value }))
+                            }
+                            title="ข้อมูลจากการตั้งค่าระบบ"
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+
+            {infoTab === "contractor" ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="excel-label">เลือกผู้รับจ้าง (จากรายการ)</label>
+                  <select
+                    className="excel-input excel-input-green mt-1"
+                    value={contractor.vendorId}
+                    onChange={(event) =>
+                      setContractor((prev) => ({ ...prev, vendorId: event.target.value }))
+                    }
+                  >
+                    <option value="">เลือกผู้รับจ้าง</option>
+                    {vendors.map((vendor) => (
+                      <option key={vendor.id} value={vendor.id}>
+                        {vendor.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="excel-hint mt-1">หากไม่มีในรายการ สามารถกรอกข้อมูลเองได้</p>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {[
+                    ["ชื่อ", "name"],
+                    ["ที่อยู่", "address"],
+                    ["เบอร์โทร", "phone"],
+                    ["เลขบัตรประชาชน", "citizenId"],
+                    ["เลขผู้เสียภาษี", "taxId"],
+                    ["ธนาคาร", "bank"],
+                    ["เลขบัญชี", "bankAccount"]
+                  ].map(([label, key]) => (
+                    <div key={label}>
+                      <label className="excel-label">{label}</label>
+                      <input
+                        className="excel-input excel-input-yellow mt-1"
+                        value={contractor[key as keyof typeof contractor]}
+                        onChange={(event) =>
+                          setContractor((prev) => ({ ...prev, [key]: event.target.value }))
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -731,7 +831,7 @@ export default function NewCasePage() {
                       className="excel-input excel-input-red mt-1"
                       value={value}
                       readOnly
-                      title="ข้อมูลผู้รับจ้าง (ไม่ต้องแก้ไข)"
+                      title="ข้อมูลผู้รับจ้าง (แก้ไขในแท็บข้อมูลผู้รับจ้าง)"
                     />
                   </div>
                 ))}
@@ -739,7 +839,7 @@ export default function NewCasePage() {
             </div>
             <aside className="excel-instruction space-y-3">
               <h4 className="text-sm font-semibold">หมายเหตุ</h4>
-              <p>ข้อมูลผู้รับจ้าง (ไม่ต้องแก้ไข)</p>
+              <p>แก้ไขข้อมูลผู้รับจ้างได้ที่แท็บข้อมูลผู้รับจ้าง</p>
             </aside>
           </div>
         ) : null}
