@@ -16,7 +16,12 @@ npm run prisma:migrate
 npm run seed
 ```
 
-Default admin: `admin@school.local` / `admin123`.
+Default admin: `admin@example.com` / `Admin@1234`.
+
+## Auth/session settings
+- `JWT_SECRET` must be the same for the API and web middleware.
+- For local Docker, the default `JWT_SECRET` is `dev-secret`.
+- The web uses cookie-based auth. Ensure your browser accepts same-site cookies.
 
 ## Services
 - Web: http://localhost:3000

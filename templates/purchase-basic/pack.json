@@ -1,0 +1,17 @@
+{
+  "id": "purchase-basic",
+  "name_th": "จัดซื้อพื้นฐาน",
+  "caseType": "PURCHASE",
+  "inputCells": [
+    { "key": "school_name", "sheet": "Setting", "cell": "B4" },
+    { "key": "school_address", "sheet": "Setting", "cell": "B5" },
+    { "key": "officer_name", "sheet": "Setting", "cell": "B8" },
+    { "key": "memo_no", "sheet": "Setting", "cell": "B14" },
+    { "key": "memo_date_day", "sheet": "Setting", "cell": "B15" },
+    { "key": "memo_date_month", "sheet": "Setting", "cell": "C15" },
+    { "key": "memo_date_year", "sheet": "Setting", "cell": "D15" },
+    { "key": "vendor_code", "sheet": "Setting", "cell": "B37" }
+  ],
+  "outputSheets": ["Page1", "Page2"],
+  "pdfMode": "singlePdf"
+}

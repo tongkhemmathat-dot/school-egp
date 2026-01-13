@@ -35,3 +35,6 @@ jobs:
       - run: npm run prisma:migrate --workspace apps/api
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/school_egp
+      - run: npm run prisma:diff --workspace apps/api
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/school_egp

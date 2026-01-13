@@ -1,0 +1,11 @@
+{
+  "id": "lunch-prepared",
+  "name_th": "จ้างเหมาปรุงสำเร็จ",
+  "caseType": "LUNCH",
+  "subtype": "PREPARED",
+  "inputCells": [
+    { "key": "school_name", "sheet": "Setting", "cell": "B4" }
+  ],
+  "outputSheets": ["Page1"],
+  "pdfMode": "singlePdf"
+}

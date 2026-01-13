@@ -1,21 +1,45 @@
 import fs from "node:fs";
 import path from "node:path";
+import { Injectable } from "@nestjs/common";
+import { PrismaService } from "../../prisma/prisma.service";
 
 export type TemplatePack = {
   id: string;
   name_th: string;
   caseType: string;
+  subtype?: string;
   inputCells: { key: string; sheet: string; cell: string }[];
   outputSheets: string[];
   pdfMode: "perSheet" | "singlePdf";
 };
 
-export class TemplatesService {
-  private readonly templatesDir = path.resolve(process.cwd(), "templates");
+export type TemplatePackWithStatus = TemplatePack & {
+  isActive: boolean;
+};
 
-  listPacks(): TemplatePack[] {
+@Injectable()
+export class TemplatesService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  private get templatesDir() {
+    const direct = path.resolve(process.cwd(), "templates");
+    if (fs.existsSync(direct)) {
+      return direct;
+    }
+    return path.resolve(process.cwd(), "..", "..", "templates");
+  }
+
+  async listPacks(orgId: string): Promise<TemplatePackWithStatus[]> {
     const dirs = fs.readdirSync(this.templatesDir, { withFileTypes: true }).filter((dir) => dir.isDirectory());
-    return dirs.map((dir) => this.loadPack(dir.name)).filter(Boolean) as TemplatePack[];
+    const packs = dirs.map((dir) => this.loadPack(dir.name)).filter(Boolean) as TemplatePack[];
+    const stored = await this.prisma.templatePack.findMany({ where: { orgId } });
+    return packs.map((pack) => {
+      const row = stored.find((item) => item.packId === pack.id);
+      return {
+        ...pack,
+        isActive: row ? row.isActive : true
+      };
+    });
   }
 
   loadPack(packId: string): TemplatePack {

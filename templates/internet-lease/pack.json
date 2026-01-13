@@ -1,0 +1,11 @@
+{
+  "id": "internet-lease",
+  "name_th": "เช่าอินเทอร์เน็ต",
+  "caseType": "INTERNET",
+  "subtype": "LEASE",
+  "inputCells": [
+    { "key": "school_name", "sheet": "Setting", "cell": "B4" }
+  ],
+  "outputSheets": ["Page1"],
+  "pdfMode": "singlePdf"
+}

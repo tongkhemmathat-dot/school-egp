@@ -2,38 +2,40 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { clearAuth, clearRedirectPath, getUser } from "../lib/api";
-import type { ApiUser } from "../lib/types";
+import { clearRedirectPath } from "../lib/api";
+import { useAuth } from "../lib/auth";
 
 const navItems = [
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "Cases", href: "/cases" },
-  { label: "Reports", href: "/reports/procurement-register" },
-  { label: "Admin", href: "/admin" }
+  { label: "Dashboard", href: "/dashboard", roles: ["Admin", "ProcurementOfficer", "Approver", "Viewer"] },
+  { label: "Cases", href: "/cases", roles: ["Admin", "ProcurementOfficer", "Approver", "Viewer"] },
+  { label: "Inventory", href: "/inventory/requisitions", roles: ["Admin", "ProcurementOfficer"] },
+  { label: "Assets", href: "/assets", roles: ["Admin", "ProcurementOfficer"] },
+  { label: "Reports", href: "/reports/procurement-register", roles: ["Admin", "ProcurementOfficer", "Approver", "Viewer"] },
+  { label: "Admin", href: "/admin", roles: ["Admin"] }
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState<ApiUser | null>(null);
+  const { user, logout } = useAuth();
 
-  useEffect(() => {
-    setUser(getUser());
-  }, []);
-
-  const items = navItems.map((item) => ({
-    ...item,
-    active: pathname === item.href || pathname.startsWith(`${item.href}/`)
-  }));
+  const items = navItems
+    .filter((item) => {
+      if (!user) return false;
+      return item.roles.includes(user.role);
+    })
+    .map((item) => ({
+      ...item,
+      active: pathname === item.href || pathname.startsWith(`${item.href}/`)
+    }));
 
   if (pathname === "/login") {
     return null;
   }
 
   const handleLogout = () => {
-    clearAuth();
     clearRedirectPath();
+    logout();
     router.replace("/login");
   };
 

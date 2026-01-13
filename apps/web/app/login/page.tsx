@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { apiFetch, clearRedirectPath, getRedirectPath, setAuth } from "../../lib/api";
+import { useRouter, useSearchParams } from "next/navigation";
+import { apiFetch, clearRedirectPath, getRedirectPath, setRedirectPath } from "../../lib/api";
+import { useAuth } from "../../lib/auth";
 import type { ApiUser } from "../../lib/types";
 
 type LoginResponse = {
@@ -12,8 +13,10 @@ type LoginResponse = {
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@school.local");
-  const [password, setPassword] = useState("admin123");
+  const searchParams = useSearchParams();
+  const { login } = useAuth();
+  const [email, setEmail] = useState("admin@example.com");
+  const [password, setPassword] = useState("Admin@1234");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -22,13 +25,17 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
+      const redirectParam = searchParams.get("redirect");
+      if (redirectParam) {
+        setRedirectPath(redirectParam);
+      }
       const data = await apiFetch<LoginResponse>("auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
         noAuth: true
       });
-      setAuth(data.accessToken, data.user);
-      const target = getRedirectPath();
+      login(data.user);
+      const target = redirectParam || getRedirectPath();
       clearRedirectPath();
       router.replace(target && target !== "/login" ? target : "/dashboard");
     } catch (err) {
@@ -49,7 +56,7 @@ export default function LoginPage() {
             className="mt-1 w-full rounded border px-3 py-2"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            placeholder="admin@school.local"
+            placeholder="admin@example.com"
             type="email"
           />
         </div>

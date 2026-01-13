@@ -1,21 +1,19 @@
 import fs from "node:fs";
 import path from "node:path";
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 import ExcelJS from "exceljs";
 import archiver from "archiver";
-import type { Document } from "@prisma/client";
+import type { DocumentFileType } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
 import { TemplatesService } from "../templates/templates.service";
 import { AuditService } from "../audit/audit.service";
-import { CasesService } from "../cases/cases.service";
 
 @Injectable()
 export class DocumentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly templates: TemplatesService,
-    private readonly audit: AuditService,
-    private readonly cases: CasesService
+    private readonly audit: AuditService
   ) {}
 
   private dataRoot() {
@@ -31,6 +29,7 @@ export class DocumentsService {
     const workbookPath = path.join(workDir, "filled.xlsx");
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(templatePath);
+    workbook.calcProperties.fullCalcOnLoad = true;
     const pack = this.templates.loadPack(packId);
     pack.inputCells.forEach((mapping) => {
       const sheet = workbook.getWorksheet(mapping.sheet);
@@ -46,6 +45,8 @@ export class DocumentsService {
     outputDir: string;
     pack: { outputSheets: string[]; pdfMode: "perSheet" | "singlePdf" };
   }) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120000);
     const response = await fetch(`${process.env.CONVERTER_URL || "http://converter:5000"}/convert`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -54,17 +55,92 @@ export class DocumentsService {
         outputDir: params.outputDir,
         sheets: params.pack.outputSheets,
         mode: params.pack.pdfMode
-      })
+      }),
+      signal: controller.signal
     });
+    clearTimeout(timeout);
     if (!response.ok) {
-      throw new Error(`Converter failed: ${response.statusText}`);
+      let detail = response.statusText;
+      try {
+        const errorBody = (await response.json()) as { error?: string };
+        if (errorBody?.error) detail = errorBody.error;
+      } catch {
+        // ignore
+      }
+      throw new Error(`Converter failed: ${detail}`);
     }
-    return (await response.json()) as { files: string[] };
+    return (await response.json()) as { files: string[]; logs?: Record<string, unknown> };
   }
 
-  async generatePack(orgId: string, userId: string, caseId: string, packId: string, inputs: Record<string, string>) {
-    const caseData = await this.cases.get(orgId, caseId);
-    if (!caseData) throw new NotFoundException("Case not found");
+  private async nextRunningNumber(
+    orgId: string,
+    fiscalYear: number,
+    documentType: string,
+    userId: string,
+    meta?: { ip?: string | null; userAgent?: string | null }
+  ) {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.documentRunningNumber.findUnique({
+        where: { orgId_fiscalYear_documentType: { orgId, fiscalYear, documentType } }
+      });
+      if (!existing) {
+        const created = await tx.documentRunningNumber.create({
+          data: { orgId, fiscalYear, documentType, sequence: 1 }
+        });
+        return { row: created, before: null, action: "CREATE" as const };
+      }
+      const updated = await tx.documentRunningNumber.update({
+        where: { id: existing.id },
+        data: { sequence: { increment: 1 } }
+      });
+      return { row: updated, before: existing, action: "UPDATE" as const };
+    });
+    await this.audit.record({
+      orgId,
+      userId,
+      action: result.action,
+      entity: "document-running-number",
+      entityId: result.row.id,
+      before: result.before ?? undefined,
+      after: result.row,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent
+    });
+    const seq = result.row.sequence.toString().padStart(4, "0");
+    return `${documentType}-${fiscalYear}-${seq}`;
+  }
+
+  private async createZip(files: string[], outputDir: string, zipName: string) {
+    const zipPath = path.join(outputDir, zipName);
+    await new Promise<void>((resolve, reject) => {
+      const output = fs.createWriteStream(zipPath);
+      const archive = archiver("zip", { zlib: { level: 9 } });
+      output.on("close", () => resolve());
+      archive.on("error", (err) => reject(err));
+      archive.pipe(output);
+      files.forEach((filePath) => {
+        archive.file(filePath, { name: path.basename(filePath) });
+      });
+      archive.finalize();
+    });
+    return zipPath;
+  }
+
+  async generatePack(
+    orgId: string,
+    userId: string,
+    caseId: string,
+    packId: string,
+    inputs: Record<string, string>,
+    pdfMode?: "perSheet" | "singlePdf",
+    meta?: { ip?: string | null; userAgent?: string | null }
+  ) {
+    const caseData = await this.prisma.procurementCase.findUnique({ where: { id: caseId } });
+    if (!caseData || caseData.orgId !== orgId) throw new NotFoundException("Case not found");
+    const packStatus = await this.prisma.templatePack.findFirst({ where: { orgId, packId } });
+    if (packStatus && !packStatus.isActive) {
+      throw new BadRequestException("Template pack is inactive");
+    }
     const workDir = path.join(this.dataRoot(), orgId, caseId, "work");
     await this.ensureDir(workDir);
 
@@ -72,73 +148,127 @@ export class DocumentsService {
     const outputDir = path.join(this.dataRoot(), orgId, caseId, "documents");
     await this.ensureDir(outputDir);
 
-    const conversion = await this.convertToPdf({ workbookPath, outputDir, pack });
+    const conversion = await this.convertToPdf({
+      workbookPath,
+      outputDir,
+      pack: { ...pack, pdfMode: pdfMode || pack.pdfMode }
+    });
+    const documentType = packId;
+    const runningNumber = await this.nextRunningNumber(
+      orgId,
+      caseData.fiscalYear,
+      documentType,
+      userId,
+      meta
+    );
 
-    const docs: Document[] = await Promise.all(
+    const docs = await Promise.all(
       conversion.files.map((filePath) =>
         this.prisma.document.create({
           data: {
             orgId,
             caseId,
             templatePackId: packId,
+            documentType,
+            fileType: "PDF",
             fileName: path.basename(filePath),
             filePath,
-            generatedAt: new Date()
+            runningNumber,
+            documentDate: new Date()
           }
         })
       )
     );
 
+    const zipName = `${packId}-${runningNumber}.zip`;
+    const zipPath = await this.createZip(conversion.files, outputDir, zipName);
+    const zipDoc = await this.prisma.document.create({
+      data: {
+        orgId,
+        caseId,
+        templatePackId: packId,
+        documentType,
+        fileType: "ZIP",
+        fileName: zipName,
+        filePath: zipPath,
+        runningNumber,
+        documentDate: new Date()
+      }
+    });
+
     await this.audit.record({
       orgId,
       userId,
-      action: "generate",
+      action: "GENERATE",
       entity: "document",
       entityId: caseId,
       caseId,
-      after: { packId, files: conversion.files }
+      after: { packId, files: conversion.files, zip: zipName },
+      ip: meta?.ip,
+      userAgent: meta?.userAgent
     });
 
-    return { documents: docs, files: conversion.files };
+    return { documents: docs, zip: zipDoc, files: conversion.files };
   }
 
   async listDocuments(orgId: string, caseId: string) {
-    return this.prisma.document.findMany({ where: { orgId, caseId }, orderBy: { generatedAt: "desc" } });
-  }
-
-  async streamZip(orgId: string, caseId: string) {
-    const docs = await this.listDocuments(orgId, caseId);
-    const archive = archiver("zip", { zlib: { level: 9 } });
-    docs.forEach((doc) => {
-      archive.file(doc.filePath, { name: doc.fileName });
+    return this.prisma.document.findMany({
+      where: { orgId, caseId },
+      orderBy: { generatedAt: "desc" }
     });
-    archive.finalize();
-    return archive;
   }
 
-  async updateDocumentNumber(orgId: string, userId: string, caseId: string, newNumber: string, reason: string) {
-    const caseData = await this.prisma.procurementCase.findUnique({ where: { id: caseId } });
-    if (!caseData || caseData.orgId !== orgId) {
-      throw new NotFoundException("Case not found");
+  async findDocument(orgId: string, documentId: string) {
+    const doc = await this.prisma.document.findUnique({ where: { id: documentId } });
+    if (!doc || doc.orgId !== orgId) throw new NotFoundException("Document not found");
+    return doc;
+  }
+
+  async downloadZip(orgId: string, caseId: string) {
+    const zipDoc = await this.prisma.document.findFirst({
+      where: { orgId, caseId, fileType: "ZIP" as DocumentFileType },
+      orderBy: { generatedAt: "desc" }
+    });
+    if (!zipDoc) throw new NotFoundException("ZIP not found");
+    return zipDoc;
+  }
+
+  async overrideNumber(
+    orgId: string,
+    userId: string,
+    documentId: string,
+    number: string,
+    reason: string,
+    documentDate?: string | null,
+    meta?: { ip?: string | null; userAgent?: string | null }
+  ) {
+    const doc = await this.prisma.document.findUnique({ where: { id: documentId } });
+    if (!doc || doc.orgId !== orgId) {
+      throw new NotFoundException("Document not found");
     }
-    if (!caseData.isBackdated) {
-      throw new Error("Document numbers can only be overridden for backdated cases.");
+    const caseData = await this.prisma.procurementCase.findUnique({ where: { id: doc.caseId } });
+    if (!caseData || !caseData.isBackdated) {
+      throw new BadRequestException("Document override allowed only for backdated cases");
     }
-    const before = { documentNumber: caseData.documentNumber };
-    const updated = await this.prisma.procurementCase.update({
-      where: { id: caseId },
-      data: { documentNumber: newNumber }
+    const updated = await this.prisma.document.update({
+      where: { id: documentId },
+      data: {
+        manualNumber: number,
+        documentDate: documentDate ? new Date(documentDate) : doc.documentDate
+      }
     });
     await this.audit.record({
       orgId,
       userId,
-      action: "override",
+      action: "OVERRIDE",
       entity: "document-number",
-      entityId: caseId,
-      caseId,
-      before,
-      after: { documentNumber: newNumber },
-      reason
+      entityId: documentId,
+      caseId: doc.caseId,
+      before: { manualNumber: doc.manualNumber, documentDate: doc.documentDate },
+      after: { manualNumber: updated.manualNumber, documentDate: updated.documentDate },
+      reason,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent
     });
     return updated;
   }

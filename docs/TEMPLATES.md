@@ -50,3 +50,15 @@ User inputs are written to the `Setting` sheet. Output sheets are `Page1`..`Page
   "pdfMode": "perSheet"
 }
 ```
+
+## Additional packs (MVP)
+- `purchase-basic`: multi-sheet purchase template (default `pdfMode: singlePdf`).
+- `lunch-prepared`: lunch prepared meal (`subtype: PREPARED`).
+- `lunch-ingredients`: lunch ingredients (`subtype: INGREDIENTS`).
+- `lunch-ingredients-cook`: lunch ingredients + cook (`subtype: INGREDIENTS_COOK`).
+- `internet-lease`: internet lease (`subtype: LEASE`).
+- `internet-purchase`: internet purchase (`subtype: PURCHASE`).
+
+## Notes
+- `pdfMode` can be overridden at generation time via `POST /cases/:id/documents/generate` using `"pdfMode": "perSheet"` or `"singlePdf"`.
+- Input values are written to the mapped cells before LibreOffice conversion.

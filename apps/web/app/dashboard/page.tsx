@@ -33,12 +33,17 @@ export default function DashboardPage() {
   const stats = useMemo(() => {
     const total = cases.length;
     const drafts = cases.filter((item) => item.status === "DRAFT").length;
-    const inProgress = cases.filter((item) => item.status === "IN_PROGRESS").length;
+    const submitted = cases.filter((item) => item.status === "SUBMITTED").length;
+    const approved = cases.filter((item) => item.status === "APPROVED").length;
+    const rejected = cases.filter((item) => item.status === "REJECTED").length;
     const completed = cases.filter((item) => item.status === "COMPLETED").length;
     return [
       { label: "Total Cases", value: total },
       { label: "Drafts", value: drafts },
-      { label: "In Progress", value: inProgress + completed }
+      { label: "Submitted", value: submitted },
+      { label: "Approved", value: approved },
+      { label: "Rejected", value: rejected },
+      { label: "Completed", value: completed }
     ];
   }, [cases]);
 
@@ -49,7 +54,7 @@ export default function DashboardPage() {
         {loading ? <span className="text-sm text-slate-400">Loading...</span> : null}
       </div>
       {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
-      <div className="mt-6 grid gap-4 md:grid-cols-3">
+      <div className="mt-6 grid gap-4 md:grid-cols-6">
         {stats.map((card) => (
           <div key={card.label} className="rounded-lg bg-white p-4 shadow">
             <p className="text-sm text-slate-500">{card.label}</p>
