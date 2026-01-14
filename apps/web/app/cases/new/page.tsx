@@ -316,6 +316,26 @@ export default function NewCasePage() {
 
   const yearOptions = useMemo(() => buildThaiYears(), []);
   const dayOptions = useMemo(() => Array.from({ length: 31 }, (_, idx) => `${idx + 1}`), []);
+  const schoolFields = useMemo(
+    () =>
+      [
+        ["ชื่อโรงเรียน", "name", true],
+        ["ที่อยู่", "address", true],
+        ["สังกัด", "affiliation", true],
+        ["จำนวนนักเรียน", "studentCount", true]
+      ] as const,
+    []
+  );
+  const staffFields = useMemo(
+    () =>
+      [
+        ["เจ้าหน้าที่", "officer", true],
+        ["หัวหน้าเจ้าหน้าที่", "headOfficer", true],
+        ["เจ้าหน้าที่การเงิน", "financeOfficer", true],
+        ["ผู้อำนวยการโรงเรียน", "director", true]
+      ] as const,
+    []
+  );
   const stepLabels = useMemo(() => {
     if (form.caseType === "LUNCH") {
       return [
@@ -766,14 +786,8 @@ export default function NewCasePage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <tbody>
-                    {[
-                      ["ชื่อโรงเรียน", "name", true],
-                      ["ที่อยู่", "address", true],
-                      ["สังกัด", "affiliation", true],
-                      ["จำนวนนักเรียน", "studentCount", true]
-                    ].map(([label, key, required]) => {
-                      const missing =
-                        showStep2Errors && isBlank(schoolInfo[key as keyof typeof schoolInfo]);
+                    {schoolFields.map(([label, key, required]) => {
+                      const missing = showStep2Errors && isBlank(schoolInfo[key]);
                       return (
                         <tr key={label} className="border-b border-[var(--excel-border)]">
                           <td className="w-48 py-2 text-slate-600">
@@ -802,14 +816,8 @@ export default function NewCasePage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <tbody>
-                    {[
-                      ["เจ้าหน้าที่", "officer", true],
-                      ["หัวหน้าเจ้าหน้าที่", "headOfficer", true],
-                      ["เจ้าหน้าที่การเงิน", "financeOfficer", true],
-                      ["ผู้อำนวยการโรงเรียน", "director", true]
-                    ].map(([label, key, required]) => {
-                      const missing =
-                        showStep2Errors && isBlank(schoolInfo[key as keyof typeof schoolInfo]);
+                    {staffFields.map(([label, key, required]) => {
+                      const missing = showStep2Errors && isBlank(schoolInfo[key]);
                       return (
                         <tr key={label} className="border-b border-[var(--excel-border)]">
                           <td className="w-48 py-2 text-slate-600">
