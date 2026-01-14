@@ -63,6 +63,12 @@ export class DocumentsService {
     workbook.calcProperties.fullCalcOnLoad = true;
     await this.populateContractorSheet(workbook, orgId);
     const pack = this.templates.loadPack(packId);
+    if (pack.outputSheets?.length) {
+      const visibleSheets = new Set(pack.outputSheets);
+      workbook.worksheets.forEach((sheet) => {
+        sheet.state = visibleSheets.has(sheet.name) ? "visible" : "hidden";
+      });
+    }
     pack.inputCells.forEach((mapping) => {
       const sheet = workbook.getWorksheet(mapping.sheet);
       if (!sheet) return;
