@@ -175,29 +175,31 @@ export default function CasesPage() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b text-slate-500">
-                  <th className="py-2">รหัสแฟ้มงาน</th>
-                  <th>ชื่อแฟ้มงาน</th>
+                  <th className="py-2">ชื่อแฟ้มงาน</th>
                   <th>ผู้ขาย/ผู้รับจ้าง</th>
                   <th>ประเภท</th>
                   <th>วงเงิน</th>
                   <th>สถานะ</th>
+                  <th>วันที่สร้าง</th>
+                  <th>แก้ไขล่าสุด</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((item) => (
                   <tr key={item.id} className="border-b">
-                    <td className="py-3">
+                    <td className="py-3 font-medium text-slate-800">
                       <Link className="text-[var(--excel-accent)] underline" href={`/cases/${item.id}`}>
-                        {item.id}
+                        {item.title}
                       </Link>
                     </td>
-                    <td className="font-medium text-slate-800">{item.title}</td>
                     <td>{item.vendor?.name || "-"}</td>
                     <td>{item.caseType}</td>
                     <td>{item.budgetAmount.toLocaleString()}</td>
                     <td>
                       <span className="excel-chip">{item.status}</span>
                     </td>
+                    <td>{new Date(item.createdAt).toLocaleDateString("th-TH")}</td>
+                    <td>{new Date(item.updatedAt).toLocaleDateString("th-TH")}</td>
                   </tr>
                 ))}
               </tbody>
