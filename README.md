@@ -16,28 +16,22 @@ Thai school e-GP procurement system (Next.js + NestJS + PostgreSQL + Prisma).
    git clone <REPO_URL>
    cd school-egp
    ```
-3. Build and start services.
+3. Build and start services (includes Nginx + Portainer).
    ```bash
    docker compose up -d --build
    ```
-4. (Optional) Enable Nginx on ports 80/443 with a self-signed certificate.
-   ```bash
-   mkdir -p nginx/certs
-   openssl req -x509 -nodes -newkey rsa:2048 -days 365 \
-     -keyout nginx/certs/privkey.pem \
-     -out nginx/certs/fullchain.pem \
-     -subj "/CN=localhost"
-   docker compose up -d --build nginx
-   ```
-5. Run database migrations and seed demo data.
+4. Run database migrations and seed demo data.
    ```bash
    docker compose exec api npm run prisma:migrate
    docker compose exec api npm run seed
    ```
-6. Open the web app.
-   - Web: http://localhost:3000 (or http://localhost / https://localhost via Nginx)
+5. Open the web app.
+   - Web: http://localhost:3000 (direct) or http://localhost / https://localhost (via Nginx)
    - API: http://localhost:4000/api
    - Converter: http://localhost:5000
+   - Portainer: http://localhost:9000 (or https://localhost:9443)
+
+Note: Nginx generates a self-signed cert into `nginx/certs` on first start if none exists.
 
 Default admin account: `admin@example.com` / `Admin@1234`.
 
