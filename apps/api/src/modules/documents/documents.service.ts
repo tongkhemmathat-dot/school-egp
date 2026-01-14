@@ -24,12 +24,44 @@ export class DocumentsService {
     await fs.promises.mkdir(target, { recursive: true });
   }
 
-  private async applyTemplate(packId: string, inputs: Record<string, string>, workDir: string) {
+  private async populateContractorSheet(workbook: ExcelJS.Workbook, orgId: string) {
+    const sheet = workbook.getWorksheet("Contractor");
+    if (!sheet) return;
+    const vendors = await this.prisma.vendor.findMany({
+      where: { orgId },
+      orderBy: [{ code: "asc" }, { createdAt: "asc" }]
+    });
+    const startRow = 4;
+    const maxRows = Math.max(vendors.length, 20);
+    for (let index = 0; index < maxRows; index += 1) {
+      const rowIndex = startRow + index;
+      const vendor = vendors[index];
+      sheet.getCell(`A${rowIndex}`).value = vendor ? index + 1 : null;
+      sheet.getCell(`B${rowIndex}`).value = vendor?.code ?? null;
+      sheet.getCell(`C${rowIndex}`).value = vendor?.name ?? null;
+      sheet.getCell(`D${rowIndex}`).value = vendor?.address ?? null;
+      sheet.getCell(`E${rowIndex}`).value = vendor?.phone ?? null;
+      sheet.getCell(`F${rowIndex}`).value = vendor?.taxId ?? null;
+      sheet.getCell(`G${rowIndex}`).value = vendor?.citizenId ?? null;
+      sheet.getCell(`H${rowIndex}`).value = vendor?.bankAccount ?? null;
+      sheet.getCell(`I${rowIndex}`).value = vendor?.bankAccountName ?? null;
+      sheet.getCell(`J${rowIndex}`).value = vendor?.bankName ?? null;
+      sheet.getCell(`K${rowIndex}`).value = vendor?.bankBranch ?? null;
+    }
+  }
+
+  private async applyTemplate(
+    packId: string,
+    inputs: Record<string, string>,
+    workDir: string,
+    orgId: string
+  ) {
     const templatePath = this.templates.resolveTemplatePath(packId);
     const workbookPath = path.join(workDir, "filled.xlsx");
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(templatePath);
     workbook.calcProperties.fullCalcOnLoad = true;
+    await this.populateContractorSheet(workbook, orgId);
     const pack = this.templates.loadPack(packId);
     pack.inputCells.forEach((mapping) => {
       const sheet = workbook.getWorksheet(mapping.sheet);
@@ -144,7 +176,7 @@ export class DocumentsService {
     const workDir = path.join(this.dataRoot(), orgId, caseId, "work");
     await this.ensureDir(workDir);
 
-    const { workbookPath, pack } = await this.applyTemplate(packId, inputs, workDir);
+    const { workbookPath, pack } = await this.applyTemplate(packId, inputs, workDir, orgId);
     const outputDir = path.join(this.dataRoot(), orgId, caseId, "documents");
     await this.ensureDir(outputDir);
 

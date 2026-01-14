@@ -265,6 +265,7 @@ model ProcurementCase {
   vendorId       String?
   isBackdated    Boolean  @default(false)
   backdateReason String?
+  lunchMeta      Json?
   createdById    String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

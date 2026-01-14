@@ -119,6 +119,9 @@ export const CaseLineSchema = z.object({
 });
 export type CaseLine = z.infer<typeof CaseLineSchema>;
 
+export const LunchMetaSchema = z.record(z.string());
+export type LunchMeta = z.infer<typeof LunchMetaSchema>;
+
 export const ProcurementCaseSchema = z.object({
   id: z.string().uuid(),
   orgId: z.string().uuid(),
@@ -133,6 +136,7 @@ export const ProcurementCaseSchema = z.object({
   vendorId: z.string().uuid().optional().nullable(),
   isBackdated: z.boolean(),
   backdateReason: z.string().optional().nullable(),
+  lunchMeta: LunchMetaSchema.optional().nullable(),
   createdAt: z.string().datetime().optional(),
   updatedAt: z.string().datetime().optional()
 });
@@ -291,6 +295,7 @@ export const CreateCaseSchema = z.object({
   vendorId: z.string().uuid().optional().nullable(),
   isBackdated: z.boolean(),
   backdateReason: z.string().optional().nullable(),
+  lunchMeta: LunchMetaSchema.optional(),
   lines: z.array(
     z.object({
       description: z.string().min(1),
@@ -309,7 +314,8 @@ export const UpdateCaseSchema = z.object({
   desiredDate: z.string().optional().nullable(),
   vendorId: z.string().uuid().optional().nullable(),
   isBackdated: z.boolean().optional(),
-  backdateReason: z.string().optional().nullable()
+  backdateReason: z.string().optional().nullable(),
+  lunchMeta: LunchMetaSchema.optional()
 });
 
 export const SubmitApprovalSchema = z.object({

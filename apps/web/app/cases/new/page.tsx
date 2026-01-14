@@ -9,7 +9,7 @@ import type { ProcurementCase, Vendor } from "../../../lib/types";
 type DateParts = { day: string; month: string; year: string };
 type CommitteeRow = { position: string; name: string; role: string };
 
-const stepLabels = [
+const baseStepLabels = [
   "เลือกปีงบประมาณ",
   "ข้อมูลโรงเรียน",
   "ข้อมูลคำขอจัดซื้อ/จ้าง",
@@ -39,6 +39,19 @@ const departmentOptions = ["กลุ่มงานบริหารทั่�
 const committeePositions = ["ครูผู้ช่วย", "ครู", "ครูชำนาญการ", "ครูชำนาญการพิเศษ", "รองผู้อำนวยการ", "ผู้อำนวยการ"];
 
 const committeeRoles = ["ประธาน", "กรรมการ"];
+
+const lunchSubtypes = [
+  { value: "PREPARED", label: "จ้างเหมาปรุงสำเร็จ" },
+  { value: "INGREDIENTS", label: "ซื้อวัตถุดิบ" },
+  { value: "INGREDIENTS_COOK", label: "ซื้อวัตถุดิบ + จ้างแม่ครัว" }
+];
+
+const internetSubtypes = [
+  { value: "LEASE", label: "เช่าอินเทอร์เน็ต" },
+  { value: "PURCHASE", label: "ซื้ออินเทอร์เน็ต" }
+];
+
+const paymentScheduleOptions = ["ทุก 2 สัปดาห์", "ทุกวัน", "ทุกสัปดาห์", "ทุกสิ้นเดือน"];
 
 const projectOptions = [
   {
@@ -110,6 +123,7 @@ export default function NewCasePage() {
   const [form, setForm] = useState({
     fiscalYear: "",
     caseType: "PURCHASE",
+    subtype: "",
     recordNumber: "",
     recordDate: emptyDate(),
     department: "",
@@ -128,7 +142,14 @@ export default function NewCasePage() {
     { position: "", name: "", role: "กรรมการ" }
   ]);
 
+  const [foodCommittee, setFoodCommittee] = useState<CommitteeRow[]>([
+    { position: "", name: "", role: "ประธาน" },
+    { position: "", name: "", role: "กรรมการ" },
+    { position: "", name: "", role: "กรรมการ" }
+  ]);
+
   const [contractor, setContractor] = useState({
+    code: "",
     vendorId: "",
     name: "",
     address: "",
@@ -139,6 +160,50 @@ export default function NewCasePage() {
     bankAccount: "",
     bankAccountName: "",
     bankBranch: ""
+  });
+
+  const [lunchExtra, setLunchExtra] = useState({
+    headOrgPosition: "",
+    actingPosition: "",
+    lunchOfficerPosition: "",
+    deputyDirector: "",
+    lunchOfficer: "",
+    foodSupervisor: "",
+    municipality: "",
+    schoolTaxId: "",
+    schoolPhone: "",
+    memoType: "",
+    foodType: "อาหารกลางวัน",
+    semester: "",
+    academicYear: "",
+    gradeLevel: "",
+    mealDays: "",
+    mealStudentCount: "",
+    mealStartDate: emptyDate(),
+    mealEndDate: emptyDate(),
+    quoteValidDays: "",
+    quoteValidUntilDate: emptyDate(),
+    bidSubmitEndDate: emptyDate(),
+    winnerAnnounceDate: emptyDate(),
+    approvalNumber: "",
+    approvalDate: emptyDate(),
+    paymentSchedule: "",
+    paymentEveryDays: "",
+    contractorCount: "",
+    wagePerDay: "",
+    totalWage: "",
+    withholdingTax: "หัก"
+  });
+
+  const [lunchDocNumbers, setLunchDocNumbers] = useState({
+    committeeOrderNumber: "",
+    committeeOrderDate: emptyDate(),
+    reportNumber: "",
+    reportDate: emptyDate(),
+    quoteNumber: "",
+    purchaseOrderNumber: "",
+    deliveryNoteNumber: "",
+    paymentNoteNumber: ""
   });
 
   const [documentDates, setDocumentDates] = useState({
@@ -194,6 +259,7 @@ export default function NewCasePage() {
     if (!match) {
       setContractor((prev) => ({
         ...prev,
+        code: "",
         name: "",
         address: "",
         phone: "",
@@ -208,11 +274,12 @@ export default function NewCasePage() {
     }
     setContractor((prev) => ({
       ...prev,
+      code: match.code || "",
       name: match.name || "",
       address: match.address || "",
       phone: match.phone || "",
       taxId: match.taxId || "",
-      citizenId: "",
+      citizenId: match.citizenId || "",
       bank: match.bankName || "",
       bankAccount: match.bankAccount || "",
       bankAccountName: match.bankAccountName || "",
@@ -220,8 +287,36 @@ export default function NewCasePage() {
     }));
   }, [contractor.vendorId, vendors]);
 
+  useEffect(() => {
+    if (!lunchExtra.mealStudentCount && schoolInfo.studentCount && schoolInfo.studentCount !== "รอการตั้งค่าระบบ") {
+      setLunchExtra((prev) => ({ ...prev, mealStudentCount: schoolInfo.studentCount }));
+    }
+  }, [schoolInfo.studentCount, lunchExtra.mealStudentCount]);
+
+  useEffect(() => {
+    const days = Number(lunchExtra.mealDays);
+    const wage = Number(lunchExtra.wagePerDay);
+    if (!lunchExtra.totalWage && days > 0 && wage > 0) {
+      setLunchExtra((prev) => ({ ...prev, totalWage: (days * wage).toString() }));
+    }
+  }, [lunchExtra.mealDays, lunchExtra.wagePerDay, lunchExtra.totalWage]);
+
   const yearOptions = useMemo(() => buildThaiYears(), []);
   const dayOptions = useMemo(() => Array.from({ length: 31 }, (_, idx) => `${idx + 1}`), []);
+  const stepLabels = useMemo(() => {
+    if (form.caseType === "LUNCH") {
+      return [
+        "เลือกปีงบประมาณ",
+        "ข้อมูลโรงเรียน",
+        "ข้อมูลอาหารกลางวัน",
+        "คณะกรรมการ",
+        "ข้อมูลผู้รับจ้าง",
+        "กำหนดวันเอกสาร",
+        "สั่งพิมพ์เอกสาร"
+      ];
+    }
+    return baseStepLabels;
+  }, [form.caseType]);
 
   const fiscalYearSelected = Boolean(form.fiscalYear);
 
@@ -235,7 +330,11 @@ export default function NewCasePage() {
 
   const validateStep = (current: number) => {
     if (current === 1) {
-      return form.fiscalYear ? null : "กรุณาเลือกปีงบประมาณ";
+      if (!form.fiscalYear) return "กรุณาเลือกปีงบประมาณ";
+      if ((form.caseType === "LUNCH" || form.caseType === "INTERNET") && !form.subtype) {
+        return "กรุณาเลือกประเภทงานย่อย";
+      }
+      return null;
     }
     if (current === 3) {
       if (
@@ -248,19 +347,48 @@ export default function NewCasePage() {
       ) {
         return "กรุณากรอกข้อมูลให้ครบถ้วน";
       }
+      if (form.caseType === "LUNCH") {
+        if (
+          !lunchExtra.semester ||
+          !lunchExtra.academicYear ||
+          !lunchExtra.mealDays ||
+          !lunchExtra.mealStudentCount ||
+          !isDateComplete(lunchExtra.mealStartDate) ||
+          !isDateComplete(lunchExtra.mealEndDate)
+        ) {
+          return "กรุณากรอกข้อมูลอาหารกลางวันให้ครบถ้วน";
+        }
+      }
     }
     if (current === 4) {
       const valid = committee.every((row) => row.position && row.name);
       if (!valid) return "กรุณากรอกข้อมูลให้ครบถ้วน";
+      if (form.caseType === "LUNCH") {
+        const foodValid = foodCommittee.every((row) => row.position && row.name);
+        if (!foodValid) return "กรุณากรอกข้อมูลให้ครบถ้วน";
+      }
     }
     if (current === 5) {
       if (!contractor.vendorId && !contractor.name.trim()) {
         return "กรุณากรอกข้อมูลให้ครบถ้วน";
       }
+      if (form.caseType === "LUNCH" && !contractor.code) {
+        return "กรุณากรอกรหัสผู้รับจ้าง";
+      }
     }
     if (current === 6) {
       const valid = Object.values(documentDates).every((date) => isDateComplete(date));
       if (!valid) return "กรุณากรอกข้อมูลให้ครบถ้วน";
+      if (form.caseType === "LUNCH") {
+        if (
+          !lunchDocNumbers.committeeOrderNumber ||
+          !isDateComplete(lunchDocNumbers.committeeOrderDate) ||
+          !lunchDocNumbers.reportNumber ||
+          !isDateComplete(lunchDocNumbers.reportDate)
+        ) {
+          return "กรุณากรอกข้อมูลเอกสารให้ครบถ้วน";
+        }
+      }
     }
     return null;
   };
@@ -280,6 +408,112 @@ export default function NewCasePage() {
     setStep((prev) => Math.max(prev - 1, 1));
   };
 
+  const buildLunchMeta = () => ({
+    school_name: schoolInfo.name,
+    school_address: schoolInfo.address,
+    school_affiliation: schoolInfo.affiliation,
+    school_student_count: lunchExtra.mealStudentCount || schoolInfo.studentCount,
+    school_officer_name: schoolInfo.officer,
+    school_head_officer_name: schoolInfo.headOfficer,
+    school_finance_officer_name: schoolInfo.financeOfficer,
+    school_director_name: schoolInfo.director,
+    record_number: form.recordNumber,
+    record_date_day: form.recordDate.day,
+    record_date_month: form.recordDate.month,
+    record_date_year: form.recordDate.year,
+    department: form.department,
+    project_code: form.projectCode,
+    delivery_days: form.deliveryDays,
+    delivery_date_day: form.deliveryDate.day,
+    delivery_date_month: form.deliveryDate.month,
+    delivery_date_year: form.deliveryDate.year,
+    committee_chair_name: committee[0]?.name || "",
+    committee_chair_position: committee[0]?.position || "",
+    committee_member1_name: committee[1]?.name || "",
+    committee_member1_position: committee[1]?.position || "",
+    committee_member2_name: committee[2]?.name || "",
+    committee_member2_position: committee[2]?.position || "",
+    committee_order_number: lunchDocNumbers.committeeOrderNumber,
+    committee_order_date_day: lunchDocNumbers.committeeOrderDate.day,
+    committee_order_date_month: lunchDocNumbers.committeeOrderDate.month,
+    committee_order_date_year: lunchDocNumbers.committeeOrderDate.year,
+    report_number: lunchDocNumbers.reportNumber,
+    report_date_day: lunchDocNumbers.reportDate.day,
+    report_date_month: lunchDocNumbers.reportDate.month,
+    report_date_year: lunchDocNumbers.reportDate.year,
+    contractor_code: contractor.code,
+    quote_number: lunchDocNumbers.quoteNumber,
+    quote_date_day: documentDates.quote.day,
+    quote_date_month: documentDates.quote.month,
+    quote_date_year: documentDates.quote.year,
+    quote_price: lunchExtra.totalWage || form.budget,
+    quote_item_count: lunchExtra.contractorCount || "1",
+    quote_item_unit: "คน",
+    purchase_order_number: lunchDocNumbers.purchaseOrderNumber,
+    purchase_order_date_day: documentDates.order.day,
+    purchase_order_date_month: documentDates.order.month,
+    purchase_order_date_year: documentDates.order.year,
+    delivery_note_number: lunchDocNumbers.deliveryNoteNumber,
+    delivery_note_date_day: documentDates.delivery.day,
+    delivery_note_date_month: documentDates.delivery.month,
+    delivery_note_date_year: documentDates.delivery.year,
+    inspection_date_day: documentDates.inspection.day,
+    inspection_date_month: documentDates.inspection.month,
+    inspection_date_year: documentDates.inspection.year,
+    payment_note_number: lunchDocNumbers.paymentNoteNumber,
+    payment_date_day: documentDates.payment.day,
+    payment_date_month: documentDates.payment.month,
+    payment_date_year: documentDates.payment.year,
+    head_org_position: lunchExtra.headOrgPosition,
+    acting_position: lunchExtra.actingPosition,
+    lunch_officer_position: lunchExtra.lunchOfficerPosition,
+    deputy_director_name: lunchExtra.deputyDirector,
+    lunch_officer_name: lunchExtra.lunchOfficer,
+    food_supervisor_name: lunchExtra.foodSupervisor,
+    municipality_name: lunchExtra.municipality,
+    school_tax_id: lunchExtra.schoolTaxId,
+    school_phone: lunchExtra.schoolPhone,
+    memo_type: lunchExtra.memoType,
+    food_type: lunchExtra.foodType,
+    semester: lunchExtra.semester,
+    academic_year: lunchExtra.academicYear,
+    grade_level: lunchExtra.gradeLevel,
+    meal_days: lunchExtra.mealDays,
+    meal_student_count: lunchExtra.mealStudentCount,
+    meal_start_date_day: lunchExtra.mealStartDate.day,
+    meal_start_date_month: lunchExtra.mealStartDate.month,
+    meal_start_date_year: lunchExtra.mealStartDate.year,
+    meal_end_date_day: lunchExtra.mealEndDate.day,
+    meal_end_date_month: lunchExtra.mealEndDate.month,
+    meal_end_date_year: lunchExtra.mealEndDate.year,
+    quote_valid_days: lunchExtra.quoteValidDays,
+    quote_valid_until_day: lunchExtra.quoteValidUntilDate.day,
+    quote_valid_until_month: lunchExtra.quoteValidUntilDate.month,
+    quote_valid_until_year: lunchExtra.quoteValidUntilDate.year,
+    bid_submit_end_date_day: lunchExtra.bidSubmitEndDate.day,
+    bid_submit_end_date_month: lunchExtra.bidSubmitEndDate.month,
+    bid_submit_end_date_year: lunchExtra.bidSubmitEndDate.year,
+    winner_announce_date_day: lunchExtra.winnerAnnounceDate.day,
+    winner_announce_date_month: lunchExtra.winnerAnnounceDate.month,
+    winner_announce_date_year: lunchExtra.winnerAnnounceDate.year,
+    approval_number: lunchExtra.approvalNumber,
+    approval_date_day: lunchExtra.approvalDate.day,
+    approval_date_month: lunchExtra.approvalDate.month,
+    approval_date_year: lunchExtra.approvalDate.year,
+    payment_schedule: lunchExtra.paymentSchedule,
+    payment_every_days: lunchExtra.paymentEveryDays,
+    contractor_count: lunchExtra.contractorCount,
+    wage_per_day: lunchExtra.wagePerDay,
+    total_wage: lunchExtra.totalWage,
+    withholding_tax: lunchExtra.withholdingTax,
+    food_committee_chair_name: foodCommittee[0]?.name || "",
+    food_committee_chair_position: foodCommittee[0]?.position || "",
+    food_committee_member1_name: foodCommittee[1]?.name || "",
+    food_committee_member1_position: foodCommittee[1]?.position || "",
+    food_committee_member2_name: foodCommittee[2]?.name || "",
+    food_committee_member2_position: foodCommittee[2]?.position || ""
+  });
+
   const handleGenerate = async () => {
     const message = validateStep(6);
     if (message) {
@@ -292,17 +526,23 @@ export default function NewCasePage() {
     setProgressIndex(0);
     setLoading(true);
     try {
+      const isLunch = form.caseType === "LUNCH";
+      const needsSubtype = form.caseType === "LUNCH" || form.caseType === "INTERNET";
       const payload = {
-        title: form.projectName || "งานจัดซื้อ/จัดจ้าง",
+        title:
+          isLunch
+            ? `อาหารกลางวัน ${lunchExtra.gradeLevel || ""}`.trim()
+            : form.projectName || "งานจัดซื้อ/จัดจ้าง",
         reason: form.reason || null,
         caseType: form.caseType,
-        subtype: null,
-        budgetAmount: Number(form.budget) || 0,
+        subtype: needsSubtype ? form.subtype || null : null,
+        budgetAmount: isLunch ? Number(lunchExtra.totalWage || form.budget) || 0 : Number(form.budget) || 0,
         fiscalYear: Number(form.fiscalYear),
         desiredDate: toIsoDate(form.deliveryDate),
         vendorId: contractor.vendorId || null,
         isBackdated: false,
         backdateReason: null,
+        lunchMeta: isLunch ? buildLunchMeta() : undefined,
         lines: []
       };
       const created = await apiFetch<ProcurementCase>("cases", {
@@ -379,20 +619,62 @@ export default function NewCasePage() {
         {step === 1 ? (
           <div className="space-y-4">
             <h3 className="excel-title text-lg">STEP 1: เลือกปีงบประมาณ</h3>
-            <div className="max-w-md">
-              <label className="excel-label">เลือกปีงบประมาณ</label>
-              <select
-                className="excel-input excel-input-green mt-1 text-lg"
-                value={form.fiscalYear}
-                onChange={(event) => setForm((prev) => ({ ...prev, fiscalYear: event.target.value }))}
-              >
-                <option value="">-- เลือกปีงบประมาณ --</option>
-                {yearOptions.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
+            <div className="max-w-md space-y-4">
+              <div>
+                <label className="excel-label">เลือกปีงบประมาณ</label>
+                <select
+                  className="excel-input excel-input-green mt-1 text-lg"
+                  value={form.fiscalYear}
+                  onChange={(event) => setForm((prev) => ({ ...prev, fiscalYear: event.target.value }))}
+                >
+                  <option value="">-- เลือกปีงบประมาณ --</option>
+                  {yearOptions.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="excel-label">ประเภทงาน</label>
+                <select
+                  className="excel-input excel-input-green mt-1"
+                  value={form.caseType}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      caseType: event.target.value,
+                      subtype: event.target.value === "LUNCH" ? prev.subtype : ""
+                    }))
+                  }
+                >
+                  <option value="PURCHASE">จัดซื้อ</option>
+                  <option value="HIRE">จัดจ้าง</option>
+                  <option value="LUNCH">อาหารกลางวัน</option>
+                  <option value="INTERNET">อินเทอร์เน็ต</option>
+                </select>
+              </div>
+              {(form.caseType === "LUNCH" || form.caseType === "INTERNET") ? (
+                <div>
+                  <label className="excel-label">
+                    {form.caseType === "LUNCH" ? "รูปแบบอาหารกลางวัน" : "รูปแบบอินเทอร์เน็ต"}
+                  </label>
+                  <select
+                    className="excel-input excel-input-green mt-1"
+                    value={form.subtype}
+                    onChange={(event) => setForm((prev) => ({ ...prev, subtype: event.target.value }))}
+                  >
+                    <option value="">
+                      {form.caseType === "LUNCH" ? "เลือกรูปแบบอาหารกลางวัน" : "เลือกรูปแบบอินเทอร์เน็ต"}
+                    </option>
+                    {(form.caseType === "LUNCH" ? lunchSubtypes : internetSubtypes).map((item) => (
+                      <option key={item.value} value={item.value}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
             </div>
           </div>
         ) : null}
@@ -504,6 +786,7 @@ export default function NewCasePage() {
                 </div>
                 <div className="grid gap-3 md:grid-cols-2">
                   {[
+                    ["รหัสผู้รับเหมา", "code"],
                     ["ชื่อ", "name"],
                     ["ที่อยู่", "address"],
                     ["เบอร์โทร", "phone"],
@@ -534,7 +817,9 @@ export default function NewCasePage() {
         {step === 3 ? (
           <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
             <div className="space-y-4">
-              <h3 className="excel-title text-lg">STEP 3: ข้อมูลคำขอจัดซื้อ/จ้าง</h3>
+              <h3 className="excel-title text-lg">
+                STEP 3: {form.caseType === "LUNCH" ? "ข้อมูลอาหารกลางวัน" : "ข้อมูลคำขอจัดซื้อ/จ้าง"}
+              </h3>
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="excel-label">เลขที่บันทึกข้อความ</label>
@@ -546,16 +831,45 @@ export default function NewCasePage() {
                   />
                 </div>
                 <div>
-                  <label className="excel-label">ประเภทงาน (จัดซื้อ/จัดจ้าง)</label>
+                  <label className="excel-label">ประเภทงาน</label>
                   <select
                     className="excel-input excel-input-green mt-1"
                     value={form.caseType}
-                    onChange={(event) => setForm((prev) => ({ ...prev, caseType: event.target.value }))}
+                    onChange={(event) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        caseType: event.target.value,
+                        subtype: event.target.value === "LUNCH" ? prev.subtype : ""
+                      }))
+                    }
                   >
                     <option value="PURCHASE">จัดซื้อ</option>
                     <option value="HIRE">จัดจ้าง</option>
+                    <option value="LUNCH">อาหารกลางวัน</option>
+                    <option value="INTERNET">อินเทอร์เน็ต</option>
                   </select>
                 </div>
+                {(form.caseType === "LUNCH" || form.caseType === "INTERNET") ? (
+                  <div>
+                    <label className="excel-label">
+                      {form.caseType === "LUNCH" ? "รูปแบบอาหารกลางวัน" : "รูปแบบอินเทอร์เน็ต"}
+                    </label>
+                    <select
+                      className="excel-input excel-input-green mt-1"
+                      value={form.subtype}
+                      onChange={(event) => setForm((prev) => ({ ...prev, subtype: event.target.value }))}
+                    >
+                      <option value="">
+                        {form.caseType === "LUNCH" ? "เลือกรูปแบบอาหารกลางวัน" : "เลือกรูปแบบอินเทอร์เน็ต"}
+                      </option>
+                      {(form.caseType === "LUNCH" ? lunchSubtypes : internetSubtypes).map((item) => (
+                        <option key={item.value} value={item.value}>
+                          {item.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
                 <div className="md:col-span-2">
                   <label className="excel-label">วันที่บันทึกข้อความรายงานขอซื้อ/จ้าง</label>
                   <div className="mt-1 grid gap-2 md:grid-cols-3">
@@ -720,14 +1034,322 @@ export default function NewCasePage() {
                     </select>
                   </div>
                 </div>
+                {form.caseType === "LUNCH" ? (
+                  <>
+                    <div className="md:col-span-2 mt-2 border-t border-[var(--excel-border)] pt-4">
+                      <h4 className="text-sm font-semibold text-slate-700">ข้อมูลอาหารกลางวัน</h4>
+                      <p className="excel-hint mt-1">กรอกข้อมูลสำหรับโครงการอาหารกลางวันตามแบบ egpeasy</p>
+                    </div>
+                    <div>
+                      <label className="excel-label">ประเภทอาหาร</label>
+                      <input
+                        className="excel-input excel-input-yellow mt-1"
+                        value={lunchExtra.foodType}
+                        onChange={(event) =>
+                          setLunchExtra((prev) => ({ ...prev, foodType: event.target.value }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="excel-label">ภาคเรียนที่</label>
+                      <select
+                        className="excel-input excel-input-green mt-1"
+                        value={lunchExtra.semester}
+                        onChange={(event) =>
+                          setLunchExtra((prev) => ({ ...prev, semester: event.target.value }))
+                        }
+                      >
+                        <option value="">เลือกภาคเรียน</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="excel-label">ปีการศึกษา</label>
+                      <select
+                        className="excel-input excel-input-green mt-1"
+                        value={lunchExtra.academicYear}
+                        onChange={(event) =>
+                          setLunchExtra((prev) => ({ ...prev, academicYear: event.target.value }))
+                        }
+                      >
+                        <option value="">เลือกปีการศึกษา</option>
+                        {yearOptions.map((year) => (
+                          <option key={year} value={year}>
+                            {year}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="excel-label">ระดับชั้นที่ใช้งบประมาณ</label>
+                      <input
+                        className="excel-input excel-input-yellow mt-1"
+                        value={lunchExtra.gradeLevel}
+                        onChange={(event) =>
+                          setLunchExtra((prev) => ({ ...prev, gradeLevel: event.target.value }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="excel-label">จำนวนวันประกอบอาหาร/วัน</label>
+                      <input
+                        className="excel-input excel-input-yellow mt-1"
+                        value={lunchExtra.mealDays}
+                        onChange={(event) =>
+                          setLunchExtra((prev) => ({ ...prev, mealDays: event.target.value }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="excel-label">จำนวนนักเรียน/คน</label>
+                      <input
+                        className="excel-input excel-input-yellow mt-1"
+                        value={lunchExtra.mealStudentCount}
+                        onChange={(event) =>
+                          setLunchExtra((prev) => ({ ...prev, mealStudentCount: event.target.value }))
+                        }
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="excel-label">ประกอบอาหารตั้งแต่วันที่</label>
+                      <div className="mt-1 grid gap-2 md:grid-cols-3">
+                        <select
+                          className="excel-input excel-input-green"
+                          value={lunchExtra.mealStartDate.day}
+                          onChange={(event) =>
+                            setLunchExtra((prev) => ({
+                              ...prev,
+                              mealStartDate: { ...prev.mealStartDate, day: event.target.value }
+                            }))
+                          }
+                        >
+                          <option value="">วัน</option>
+                          {dayOptions.map((day) => (
+                            <option key={day} value={day}>
+                              {day}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          className="excel-input excel-input-green"
+                          value={lunchExtra.mealStartDate.month}
+                          onChange={(event) =>
+                            setLunchExtra((prev) => ({
+                              ...prev,
+                              mealStartDate: { ...prev.mealStartDate, month: event.target.value }
+                            }))
+                          }
+                        >
+                          <option value="">เดือน</option>
+                          {months.map((month) => (
+                            <option key={month} value={month}>
+                              {month}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          className="excel-input excel-input-green"
+                          value={lunchExtra.mealStartDate.year}
+                          onChange={(event) =>
+                            setLunchExtra((prev) => ({
+                              ...prev,
+                              mealStartDate: { ...prev.mealStartDate, year: event.target.value }
+                            }))
+                          }
+                        >
+                          <option value="">ปี (พ.ศ.)</option>
+                          {yearOptions.map((year) => (
+                            <option key={year} value={year}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="excel-label">ถึงวันที่</label>
+                      <div className="mt-1 grid gap-2 md:grid-cols-3">
+                        <select
+                          className="excel-input excel-input-green"
+                          value={lunchExtra.mealEndDate.day}
+                          onChange={(event) =>
+                            setLunchExtra((prev) => ({
+                              ...prev,
+                              mealEndDate: { ...prev.mealEndDate, day: event.target.value }
+                            }))
+                          }
+                        >
+                          <option value="">วัน</option>
+                          {dayOptions.map((day) => (
+                            <option key={day} value={day}>
+                              {day}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          className="excel-input excel-input-green"
+                          value={lunchExtra.mealEndDate.month}
+                          onChange={(event) =>
+                            setLunchExtra((prev) => ({
+                              ...prev,
+                              mealEndDate: { ...prev.mealEndDate, month: event.target.value }
+                            }))
+                          }
+                        >
+                          <option value="">เดือน</option>
+                          {months.map((month) => (
+                            <option key={month} value={month}>
+                              {month}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          className="excel-input excel-input-green"
+                          value={lunchExtra.mealEndDate.year}
+                          onChange={(event) =>
+                            setLunchExtra((prev) => ({
+                              ...prev,
+                              mealEndDate: { ...prev.mealEndDate, year: event.target.value }
+                            }))
+                          }
+                        >
+                          <option value="">ปี (พ.ศ.)</option>
+                          {yearOptions.map((year) => (
+                            <option key={year} value={year}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="md:col-span-2 mt-2 border-t border-[var(--excel-border)] pt-4">
+                      <h4 className="text-sm font-semibold text-slate-700">ข้อมูลหน่วยงานเพิ่มเติม</h4>
+                    </div>
+                    <div>
+                      <label className="excel-label">ตำแหน่งหัวหน้าหน่วยงาน</label>
+                      <input
+                        className="excel-input excel-input-yellow mt-1"
+                        value={lunchExtra.headOrgPosition}
+                        onChange={(event) =>
+                          setLunchExtra((prev) => ({ ...prev, headOrgPosition: event.target.value }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="excel-label">รักษาการในตำแหน่งอะไร</label>
+                      <input
+                        className="excel-input excel-input-yellow mt-1"
+                        value={lunchExtra.actingPosition}
+                        onChange={(event) =>
+                          setLunchExtra((prev) => ({ ...prev, actingPosition: event.target.value }))
+                        }
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="excel-label">ตำแหน่งผู้ดำเนินงาน/เจ้าหน้าที่อาหารกลางวัน</label>
+                      <input
+                        className="excel-input excel-input-yellow mt-1"
+                        value={lunchExtra.lunchOfficerPosition}
+                        onChange={(event) =>
+                          setLunchExtra((prev) => ({
+                            ...prev,
+                            lunchOfficerPosition: event.target.value
+                          }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="excel-label">รองผู้อำนวยการ</label>
+                      <input
+                        className="excel-input excel-input-yellow mt-1"
+                        value={lunchExtra.deputyDirector}
+                        onChange={(event) =>
+                          setLunchExtra((prev) => ({ ...prev, deputyDirector: event.target.value }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="excel-label">เจ้าหน้าที่อาหารกลางวัน</label>
+                      <input
+                        className="excel-input excel-input-yellow mt-1"
+                        value={lunchExtra.lunchOfficer}
+                        onChange={(event) =>
+                          setLunchExtra((prev) => ({ ...prev, lunchOfficer: event.target.value }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="excel-label">ผู้ควบคุมการประกอบอาหาร</label>
+                      <input
+                        className="excel-input excel-input-yellow mt-1"
+                        value={lunchExtra.foodSupervisor}
+                        onChange={(event) =>
+                          setLunchExtra((prev) => ({ ...prev, foodSupervisor: event.target.value }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="excel-label">หน่วยงานเทศบาล/อบต</label>
+                      <input
+                        className="excel-input excel-input-yellow mt-1"
+                        value={lunchExtra.municipality}
+                        onChange={(event) =>
+                          setLunchExtra((prev) => ({ ...prev, municipality: event.target.value }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="excel-label">เลขผู้เสียภาษี</label>
+                      <input
+                        className="excel-input excel-input-yellow mt-1"
+                        value={lunchExtra.schoolTaxId}
+                        onChange={(event) =>
+                          setLunchExtra((prev) => ({ ...prev, schoolTaxId: event.target.value }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <label className="excel-label">โทรศัพท์</label>
+                      <input
+                        className="excel-input excel-input-yellow mt-1"
+                        value={lunchExtra.schoolPhone}
+                        onChange={(event) =>
+                          setLunchExtra((prev) => ({ ...prev, schoolPhone: event.target.value }))
+                        }
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="excel-label">เลือกคำบันทึกข้อความ</label>
+                      <input
+                        className="excel-input excel-input-yellow mt-1"
+                        value={lunchExtra.memoType}
+                        onChange={(event) =>
+                          setLunchExtra((prev) => ({ ...prev, memoType: event.target.value }))
+                        }
+                        placeholder="ตัวอย่าง: รายงานขอจ้างบุคคลเพื่อประกอบอาหาร"
+                      />
+                    </div>
+                  </>
+                ) : null}
               </div>
             </div>
             <aside className="excel-instruction space-y-3">
               <h4 className="text-sm font-semibold">คำแนะนำการกรอก</h4>
-              <p>เลือกวันเดือนปี ที่จะจัดจ้าง</p>
-              <p>เลือกกลุ่มงาน</p>
-              <p>เลือกโครงการ</p>
-              <p>ช่องสีแดงไม่ต้องแก้ไข</p>
+              {form.caseType === "LUNCH" ? (
+                <>
+                  <p>พิมพ์ประเภทอาหาร และช่วงเวลาประกอบอาหารให้ครบ</p>
+                  <p>ระบุจำนวนวันและจำนวนนักเรียนตามงบประมาณ</p>
+                  <p>ข้อมูลเพิ่มเติมใช้สำหรับเอกสารอาหารกลางวัน</p>
+                </>
+              ) : (
+                <>
+                  <p>เลือกวันเดือนปี ที่จะจัดจ้าง</p>
+                  <p>เลือกกลุ่มงาน</p>
+                  <p>เลือกโครงการ</p>
+                  <p>ช่องสีแดงไม่ต้องแก้ไข</p>
+                </>
+              )}
             </aside>
           </div>
         ) : null}
@@ -735,7 +1357,9 @@ export default function NewCasePage() {
         {step === 4 ? (
           <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
             <div className="space-y-4">
-              <h3 className="excel-title text-lg">STEP 4: คณะกรรมการตรวจรับพัสดุ</h3>
+              <h3 className="excel-title text-lg">
+                STEP 4: {form.caseType === "LUNCH" ? "คณะกรรมการตรวจรับ" : "คณะกรรมการตรวจรับพัสดุ"}
+              </h3>
               <div className="overflow-x-auto">
                 <table className="w-full border text-sm">
                   <thead className="bg-slate-50 text-left text-slate-600">
@@ -805,6 +1429,80 @@ export default function NewCasePage() {
                   </tbody>
                 </table>
               </div>
+              {form.caseType === "LUNCH" ? (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold text-slate-700">คณะกรรมการตรวจการประกอบอาหาร</h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border text-sm">
+                      <thead className="bg-slate-50 text-left text-slate-600">
+                        <tr>
+                          <th className="border px-3 py-2">ตำแหน่ง</th>
+                          <th className="border px-3 py-2">ชื่อ-สกุล</th>
+                          <th className="border px-3 py-2">หน้าที่</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {foodCommittee.map((row, index) => (
+                          <tr key={`food-committee-${index}`}>
+                            <td className="border px-2 py-2">
+                              <select
+                                className="excel-input excel-input-green"
+                                value={row.position}
+                                onChange={(event) =>
+                                  setFoodCommittee((prev) =>
+                                    prev.map((item, idx) =>
+                                      idx === index ? { ...item, position: event.target.value } : item
+                                    )
+                                  )
+                                }
+                              >
+                                <option value="">เลือกตำแหน่ง</option>
+                                {committeePositions.map((pos) => (
+                                  <option key={pos} value={pos}>
+                                    {pos}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="border px-2 py-2">
+                              <input
+                                className="excel-input excel-input-yellow"
+                                value={row.name}
+                                onChange={(event) =>
+                                  setFoodCommittee((prev) =>
+                                    prev.map((item, idx) =>
+                                      idx === index ? { ...item, name: event.target.value } : item
+                                    )
+                                  )
+                                }
+                              />
+                            </td>
+                            <td className="border px-2 py-2">
+                              <select
+                                className="excel-input excel-input-green"
+                                value={row.role}
+                                onChange={(event) =>
+                                  setFoodCommittee((prev) =>
+                                    prev.map((item, idx) =>
+                                      idx === index ? { ...item, role: event.target.value } : item
+                                    )
+                                  )
+                                }
+                              >
+                                {committeeRoles.map((role) => (
+                                  <option key={role} value={role}>
+                                    {role}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : null}
             </div>
             <aside className="excel-instruction space-y-3">
               <h4 className="text-sm font-semibold">ตัวอย่างข้อความ</h4>
@@ -857,6 +1555,91 @@ export default function NewCasePage() {
                   </div>
                 ))}
               </div>
+              {form.caseType === "LUNCH" ? (
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  <div>
+                    <label className="excel-label">รหัสผู้รับจ้าง</label>
+                    <input
+                      className="excel-input excel-input-yellow mt-1"
+                      value={contractor.code}
+                      onChange={(event) =>
+                        setContractor((prev) => ({ ...prev, code: event.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="excel-label">การชำระเงินผู้ว่าจ้าง</label>
+                    <select
+                      className="excel-input excel-input-green mt-1"
+                      value={lunchExtra.paymentSchedule}
+                      onChange={(event) =>
+                        setLunchExtra((prev) => ({ ...prev, paymentSchedule: event.target.value }))
+                      }
+                    >
+                      <option value="">เลือกรูปแบบการชำระเงิน</option>
+                      {paymentScheduleOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="excel-label">ทุกกี่วันทำการประกอบอาหาร</label>
+                    <input
+                      className="excel-input excel-input-yellow mt-1"
+                      value={lunchExtra.paymentEveryDays}
+                      onChange={(event) =>
+                        setLunchExtra((prev) => ({ ...prev, paymentEveryDays: event.target.value }))
+                      }
+                      placeholder="เช่น 10"
+                    />
+                  </div>
+                  <div>
+                    <label className="excel-label">จำนวนผู้รับจ้าง</label>
+                    <input
+                      className="excel-input excel-input-yellow mt-1"
+                      value={lunchExtra.contractorCount}
+                      onChange={(event) =>
+                        setLunchExtra((prev) => ({ ...prev, contractorCount: event.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="excel-label">ค่าจ้าง (บาท)</label>
+                    <input
+                      className="excel-input excel-input-yellow mt-1"
+                      value={lunchExtra.wagePerDay}
+                      onChange={(event) =>
+                        setLunchExtra((prev) => ({ ...prev, wagePerDay: event.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="excel-label">คิดเป็นเงินทั้งสิ้น (บาท)</label>
+                    <input
+                      className="excel-input excel-input-yellow mt-1"
+                      value={lunchExtra.totalWage}
+                      onChange={(event) =>
+                        setLunchExtra((prev) => ({ ...prev, totalWage: event.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="excel-label">หักภาษี ณ ที่จ่าย</label>
+                    <select
+                      className="excel-input excel-input-green mt-1"
+                      value={lunchExtra.withholdingTax}
+                      onChange={(event) =>
+                        setLunchExtra((prev) => ({ ...prev, withholdingTax: event.target.value }))
+                      }
+                    >
+                      <option value="หัก">หัก</option>
+                      <option value="ไม่หัก">ไม่หัก</option>
+                    </select>
+                  </div>
+                </div>
+              ) : null}
             </div>
             <aside className="excel-instruction space-y-3">
               <h4 className="text-sm font-semibold">หมายเหตุ</h4>
@@ -868,16 +1651,361 @@ export default function NewCasePage() {
         {step === 6 ? (
           <div className="space-y-4">
             <h3 className="excel-title text-lg">STEP 6: กำหนดวันเอกสาร</h3>
+            {form.caseType === "LUNCH" ? (
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="excel-label">เลขที่คำสั่งแต่งตั้งคณะกรรมการ</label>
+                  <input
+                    className="excel-input excel-input-yellow mt-1"
+                    value={lunchDocNumbers.committeeOrderNumber}
+                    onChange={(event) =>
+                      setLunchDocNumbers((prev) => ({ ...prev, committeeOrderNumber: event.target.value }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="excel-label">เลขที่บันทึกข้อความรายงานผล</label>
+                  <input
+                    className="excel-input excel-input-yellow mt-1"
+                    value={lunchDocNumbers.reportNumber}
+                    onChange={(event) =>
+                      setLunchDocNumbers((prev) => ({ ...prev, reportNumber: event.target.value }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="excel-label">เลขที่ใบเสนอราคา</label>
+                  <input
+                    className="excel-input excel-input-yellow mt-1"
+                    value={lunchDocNumbers.quoteNumber}
+                    onChange={(event) =>
+                      setLunchDocNumbers((prev) => ({ ...prev, quoteNumber: event.target.value }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="excel-label">เลขที่ใบสั่งจ้าง</label>
+                  <input
+                    className="excel-input excel-input-yellow mt-1"
+                    value={lunchDocNumbers.purchaseOrderNumber}
+                    onChange={(event) =>
+                      setLunchDocNumbers((prev) => ({ ...prev, purchaseOrderNumber: event.target.value }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="excel-label">เลขที่ใบส่งมอบงานจ้าง</label>
+                  <input
+                    className="excel-input excel-input-yellow mt-1"
+                    value={lunchDocNumbers.deliveryNoteNumber}
+                    onChange={(event) =>
+                      setLunchDocNumbers((prev) => ({ ...prev, deliveryNoteNumber: event.target.value }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="excel-label">เลขที่บันทึกข้อความขอเบิกเงิน</label>
+                  <input
+                    className="excel-input excel-input-yellow mt-1"
+                    value={lunchDocNumbers.paymentNoteNumber}
+                    onChange={(event) =>
+                      setLunchDocNumbers((prev) => ({ ...prev, paymentNoteNumber: event.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+            ) : null}
+            {form.caseType === "LUNCH" ? (
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="excel-label">ยืนราคากี่วัน</label>
+                  <input
+                    className="excel-input excel-input-yellow mt-1"
+                    value={lunchExtra.quoteValidDays}
+                    onChange={(event) =>
+                      setLunchExtra((prev) => ({ ...prev, quoteValidDays: event.target.value }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="excel-label">ยืนราคาถึงวันที่</label>
+                  <div className="mt-1 grid gap-2 md:grid-cols-3">
+                    <select
+                      className="excel-input excel-input-green"
+                      value={lunchExtra.quoteValidUntilDate.day}
+                      onChange={(event) =>
+                        setLunchExtra((prev) => ({
+                          ...prev,
+                          quoteValidUntilDate: { ...prev.quoteValidUntilDate, day: event.target.value }
+                        }))
+                      }
+                    >
+                      <option value="">วัน</option>
+                      {dayOptions.map((day) => (
+                        <option key={day} value={day}>
+                          {day}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="excel-input excel-input-green"
+                      value={lunchExtra.quoteValidUntilDate.month}
+                      onChange={(event) =>
+                        setLunchExtra((prev) => ({
+                          ...prev,
+                          quoteValidUntilDate: { ...prev.quoteValidUntilDate, month: event.target.value }
+                        }))
+                      }
+                    >
+                      <option value="">เดือน</option>
+                      {months.map((month) => (
+                        <option key={month} value={month}>
+                          {month}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="excel-input excel-input-green"
+                      value={lunchExtra.quoteValidUntilDate.year}
+                      onChange={(event) =>
+                        setLunchExtra((prev) => ({
+                          ...prev,
+                          quoteValidUntilDate: { ...prev.quoteValidUntilDate, year: event.target.value }
+                        }))
+                      }
+                    >
+                      <option value="">ปี (พ.ศ.)</option>
+                      {yearOptions.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="excel-label">ยื่นราคาถึงวันที่</label>
+                  <div className="mt-1 grid gap-2 md:grid-cols-3">
+                    <select
+                      className="excel-input excel-input-green"
+                      value={lunchExtra.bidSubmitEndDate.day}
+                      onChange={(event) =>
+                        setLunchExtra((prev) => ({
+                          ...prev,
+                          bidSubmitEndDate: { ...prev.bidSubmitEndDate, day: event.target.value }
+                        }))
+                      }
+                    >
+                      <option value="">วัน</option>
+                      {dayOptions.map((day) => (
+                        <option key={day} value={day}>
+                          {day}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="excel-input excel-input-green"
+                      value={lunchExtra.bidSubmitEndDate.month}
+                      onChange={(event) =>
+                        setLunchExtra((prev) => ({
+                          ...prev,
+                          bidSubmitEndDate: { ...prev.bidSubmitEndDate, month: event.target.value }
+                        }))
+                      }
+                    >
+                      <option value="">เดือน</option>
+                      {months.map((month) => (
+                        <option key={month} value={month}>
+                          {month}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="excel-input excel-input-green"
+                      value={lunchExtra.bidSubmitEndDate.year}
+                      onChange={(event) =>
+                        setLunchExtra((prev) => ({
+                          ...prev,
+                          bidSubmitEndDate: { ...prev.bidSubmitEndDate, year: event.target.value }
+                        }))
+                      }
+                    >
+                      <option value="">ปี (พ.ศ.)</option>
+                      {yearOptions.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="excel-label">ประกาศผู้ชนะเสนอราคา</label>
+                  <div className="mt-1 grid gap-2 md:grid-cols-3">
+                    <select
+                      className="excel-input excel-input-green"
+                      value={lunchExtra.winnerAnnounceDate.day}
+                      onChange={(event) =>
+                        setLunchExtra((prev) => ({
+                          ...prev,
+                          winnerAnnounceDate: { ...prev.winnerAnnounceDate, day: event.target.value }
+                        }))
+                      }
+                    >
+                      <option value="">วัน</option>
+                      {dayOptions.map((day) => (
+                        <option key={day} value={day}>
+                          {day}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="excel-input excel-input-green"
+                      value={lunchExtra.winnerAnnounceDate.month}
+                      onChange={(event) =>
+                        setLunchExtra((prev) => ({
+                          ...prev,
+                          winnerAnnounceDate: { ...prev.winnerAnnounceDate, month: event.target.value }
+                        }))
+                      }
+                    >
+                      <option value="">เดือน</option>
+                      {months.map((month) => (
+                        <option key={month} value={month}>
+                          {month}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="excel-input excel-input-green"
+                      value={lunchExtra.winnerAnnounceDate.year}
+                      onChange={(event) =>
+                        setLunchExtra((prev) => ({
+                          ...prev,
+                          winnerAnnounceDate: { ...prev.winnerAnnounceDate, year: event.target.value }
+                        }))
+                      }
+                    >
+                      <option value="">ปี (พ.ศ.)</option>
+                      {yearOptions.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="excel-label">เลขที่อนุมัติจ้าง</label>
+                  <input
+                    className="excel-input excel-input-yellow mt-1"
+                    value={lunchExtra.approvalNumber}
+                    onChange={(event) =>
+                      setLunchExtra((prev) => ({ ...prev, approvalNumber: event.target.value }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="excel-label">วันที่อนุมัติจ้าง</label>
+                  <div className="mt-1 grid gap-2 md:grid-cols-3">
+                    <select
+                      className="excel-input excel-input-green"
+                      value={lunchExtra.approvalDate.day}
+                      onChange={(event) =>
+                        setLunchExtra((prev) => ({
+                          ...prev,
+                          approvalDate: { ...prev.approvalDate, day: event.target.value }
+                        }))
+                      }
+                    >
+                      <option value="">วัน</option>
+                      {dayOptions.map((day) => (
+                        <option key={day} value={day}>
+                          {day}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="excel-input excel-input-green"
+                      value={lunchExtra.approvalDate.month}
+                      onChange={(event) =>
+                        setLunchExtra((prev) => ({
+                          ...prev,
+                          approvalDate: { ...prev.approvalDate, month: event.target.value }
+                        }))
+                      }
+                    >
+                      <option value="">เดือน</option>
+                      {months.map((month) => (
+                        <option key={month} value={month}>
+                          {month}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="excel-input excel-input-green"
+                      value={lunchExtra.approvalDate.year}
+                      onChange={(event) =>
+                        setLunchExtra((prev) => ({
+                          ...prev,
+                          approvalDate: { ...prev.approvalDate, year: event.target.value }
+                        }))
+                      }
+                    >
+                      <option value="">ปี (พ.ศ.)</option>
+                      {yearOptions.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            ) : null}
             <div className="grid gap-4 md:grid-cols-2">
-              {[
-                ["วันที่ใบเสนอราคา", "quote"],
-                ["วันที่ใบสั่งจ้าง", "order"],
-                ["วันที่ส่งมอบงาน", "delivery"],
-                ["วันที่ตรวจรับพัสดุ", "inspection"],
-                ["วันที่ขอเบิกเงิน", "payment"]
-              ].map(([label, key]) => {
-                const dateKey = key as keyof typeof documentDates;
-                const value = documentDates[dateKey];
+              {(form.caseType === "LUNCH"
+                ? [
+                    ["วันที่ออกคำสั่งแต่งตั้งคณะกรรมการ", "committeeOrder"],
+                    ["วันที่บันทึกข้อความรายงานผล", "report"],
+                    ["วันที่ใบเสนอราคา", "quote"],
+                    ["วันที่ใบสั่งจ้าง", "order"],
+                    ["วันที่ส่งมอบงาน", "delivery"],
+                    ["วันที่ตรวจรับพัสดุ", "inspection"],
+                    ["วันที่ขอเบิกเงิน", "payment"]
+                  ]
+                : [
+                    ["วันที่ใบเสนอราคา", "quote"],
+                    ["วันที่ใบสั่งจ้าง", "order"],
+                    ["วันที่ส่งมอบงาน", "delivery"],
+                    ["วันที่ตรวจรับพัสดุ", "inspection"],
+                    ["วันที่ขอเบิกเงิน", "payment"]
+                  ]
+              ).map(([label, key]) => {
+                const dateKey =
+                  key === "committeeOrder"
+                    ? "committeeOrderDate"
+                    : key === "report"
+                      ? "reportDate"
+                      : key;
+                const value =
+                  dateKey === "committeeOrderDate"
+                    ? lunchDocNumbers.committeeOrderDate
+                    : dateKey === "reportDate"
+                      ? lunchDocNumbers.reportDate
+                      : documentDates[dateKey as keyof typeof documentDates];
+                const updateDate =
+                  dateKey === "committeeOrderDate"
+                    ? (next: DateParts) =>
+                        setLunchDocNumbers((prev) => ({ ...prev, committeeOrderDate: next }))
+                    : dateKey === "reportDate"
+                      ? (next: DateParts) =>
+                          setLunchDocNumbers((prev) => ({ ...prev, reportDate: next }))
+                      : (next: DateParts) =>
+                          setDocumentDates((prev) => ({
+                            ...prev,
+                            [dateKey as keyof typeof documentDates]: next
+                          }));
                 return (
                   <div key={label}>
                     <label className="excel-label">{label}</label>
@@ -885,7 +2013,7 @@ export default function NewCasePage() {
                       <select
                         className="excel-input excel-input-green"
                         value={value.day}
-                        onChange={(event) => setDateParts(dateKey, { ...value, day: event.target.value })}
+                        onChange={(event) => updateDate({ ...value, day: event.target.value })}
                       >
                         <option value="">วัน</option>
                         {dayOptions.map((day) => (
@@ -897,7 +2025,7 @@ export default function NewCasePage() {
                       <select
                         className="excel-input excel-input-green"
                         value={value.month}
-                        onChange={(event) => setDateParts(dateKey, { ...value, month: event.target.value })}
+                        onChange={(event) => updateDate({ ...value, month: event.target.value })}
                       >
                         <option value="">เดือน</option>
                         {months.map((month) => (
@@ -909,7 +2037,7 @@ export default function NewCasePage() {
                       <select
                         className="excel-input excel-input-green"
                         value={value.year}
-                        onChange={(event) => setDateParts(dateKey, { ...value, year: event.target.value })}
+                        onChange={(event) => updateDate({ ...value, year: event.target.value })}
                       >
                         <option value="">ปี (พ.ศ.)</option>
                         {yearOptions.map((year) => (

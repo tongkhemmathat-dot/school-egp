@@ -148,6 +148,7 @@ export default function CaseDetailPage() {
   );
 
   const documents = (caseData?.documents || []) as DocumentRecord[];
+  const lunchMeta = caseData?.lunchMeta || null;
   const canManage = user?.role === "Admin" || user?.role === "ProcurementOfficer";
   const canApprove = user?.role === "Admin" || user?.role === "Approver";
 
@@ -261,6 +262,24 @@ export default function CaseDetailPage() {
     link.remove();
     window.URL.revokeObjectURL(url);
   };
+
+  const applyLunchInputs = useCallback(() => {
+    if (!selectedPack || !lunchMeta) return;
+    const nextInputs = selectedPack.inputCells.reduce<Record<string, string>>((acc, cell) => {
+      const value = lunchMeta[cell.key];
+      acc[cell.key] = value ?? "";
+      return acc;
+    }, {});
+    setInputs(nextInputs);
+  }, [lunchMeta, selectedPack]);
+
+  useEffect(() => {
+    if (!selectedPack || !lunchMeta) return;
+    const hasValues = Object.values(inputs).some((value) => value && value.trim() !== "");
+    if (!hasValues) {
+      applyLunchInputs();
+    }
+  }, [selectedPack, lunchMeta, inputs, applyLunchInputs]);
 
   const handlePreview = async (doc: DocumentRecord) => {
     if (doc.fileType !== "PDF") {
@@ -685,6 +704,15 @@ export default function CaseDetailPage() {
               <div className="rounded-lg bg-white p-4 shadow">
                 <h4 className="text-sm font-semibold text-slate-700">Generate Pack</h4>
                 <div className="mt-3 grid gap-3">
+                  {caseData.caseType === "LUNCH" && lunchMeta ? (
+                    <button
+                      className="rounded border px-3 py-2 text-sm"
+                      type="button"
+                      onClick={applyLunchInputs}
+                    >
+                      โหลดข้อมูลอาหารกลางวัน
+                    </button>
+                  ) : null}
                   <select
                     className="rounded border px-3 py-2"
                     value={selectedPackId}

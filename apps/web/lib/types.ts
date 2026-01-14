@@ -55,6 +55,7 @@ export type ProcurementCase = {
   vendor?: Vendor | null;
   isBackdated: boolean;
   backdateReason?: string | null;
+  lunchMeta?: Record<string, string> | null;
   createdAt: string;
   updatedAt: string;
   lines?: CaseLine[];

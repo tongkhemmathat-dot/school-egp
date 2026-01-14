@@ -38,6 +38,7 @@ export class CasesService {
       vendorId?: string | null;
       isBackdated: boolean;
       backdateReason?: string | null;
+      lunchMeta?: Record<string, string>;
       lines: { description: string; itemId?: string | null; quantity: number; unitPrice: number }[];
     },
     meta?: { ip?: string | null; userAgent?: string | null }
@@ -62,6 +63,7 @@ export class CasesService {
           vendorId: data.vendorId ?? null,
           isBackdated: data.isBackdated,
           backdateReason: data.backdateReason ?? null,
+          lunchMeta: data.lunchMeta ?? undefined,
           createdById: userId
         }
       });
@@ -107,6 +109,7 @@ export class CasesService {
       vendorId?: string | null;
       isBackdated?: boolean;
       backdateReason?: string | null;
+      lunchMeta?: Record<string, string>;
     },
     meta?: { ip?: string | null; userAgent?: string | null }
   ) {
@@ -121,6 +124,7 @@ export class CasesService {
       where: { id },
       data: {
         ...data,
+        lunchMeta: data.lunchMeta ?? undefined,
         desiredDate: data.desiredDate ? new Date(data.desiredDate) : undefined
       }
     });
