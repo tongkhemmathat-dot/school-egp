@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "../../../lib/api";
-import type { ProcurementCase, Vendor } from "../../../lib/types";
+import type { ProcurementCase, User, Vendor } from "../../../lib/types";
 
 type DateParts = { day: string; month: string; year: string };
 type CommitteeRow = { position: string; name: string; role: string };
@@ -103,8 +103,10 @@ export default function NewCasePage() {
   const [step, setStep] = useState(1);
   const [infoTab, setInfoTab] = useState<"school" | "staff" | "contractor">("school");
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [staffUsers, setStaffUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [validationStep, setValidationStep] = useState<number | null>(null);
   const [generating, setGenerating] = useState(false);
   const [progressIndex, setProgressIndex] = useState(0);
   const [successMessage, setSuccessMessage] = useState("");
@@ -216,23 +218,34 @@ export default function NewCasePage() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([apiFetch<Vendor[]>("admin/vendors"), apiFetch("admin/organization")])
-      .then(([vendorData, orgData]) => {
-        if (!active) return;
-        setVendors(vendorData);
+    Promise.allSettled([
+      apiFetch<Vendor[]>("admin/vendors"),
+      apiFetch("admin/organization"),
+      apiFetch<User[]>("admin/users")
+    ]).then((results) => {
+      if (!active) return;
+      const [vendorResult, orgResult, userResult] = results;
+      if (vendorResult.status === "fulfilled") {
+        setVendors(vendorResult.value);
+      }
+      if (orgResult.status === "fulfilled") {
+        const orgData = orgResult.value as any;
         setSchoolInfo((prev) => ({
           ...prev,
-          name: (orgData as any)?.name || prev.name,
-          address: (orgData as any)?.address || prev.address,
-          affiliation: (orgData as any)?.affiliation || prev.affiliation,
-          studentCount: (orgData as any)?.studentCount?.toString() || prev.studentCount,
-          officer: (orgData as any)?.officerName || prev.officer,
-          headOfficer: (orgData as any)?.headOfficerName || prev.headOfficer,
-          financeOfficer: (orgData as any)?.financeOfficerName || prev.financeOfficer,
-          director: (orgData as any)?.directorName || prev.director
+          name: orgData?.name || prev.name,
+          address: orgData?.address || prev.address,
+          affiliation: orgData?.affiliation || prev.affiliation,
+          studentCount: orgData?.studentCount?.toString() || prev.studentCount,
+          officer: orgData?.officerName || prev.officer,
+          headOfficer: orgData?.headOfficerName || prev.headOfficer,
+          financeOfficer: orgData?.financeOfficerName || prev.financeOfficer,
+          director: orgData?.directorName || prev.director
         }));
-      })
-      .catch(() => undefined);
+      }
+      if (userResult.status === "fulfilled") {
+        setStaffUsers(userResult.value);
+      }
+    });
     return () => {
       active = false;
     };
@@ -322,11 +335,39 @@ export default function NewCasePage() {
 
   const stepCompleted = (index: number) => step > index;
 
+  const showStep1Errors = validationStep === 1;
+  const showStep2Errors = validationStep === 2;
+  const showStep3Errors = validationStep === 3;
+  const showStep4Errors = validationStep === 4;
+  const showStep5Errors = validationStep === 5;
+  const showStep6Errors = validationStep === 6;
+
+  const contractorMissing = showStep5Errors && !contractor.vendorId && !contractor.name.trim();
+  const contractorCodeMissing = showStep5Errors && form.caseType === "LUNCH" && !contractor.code;
+
   const setDateParts = (key: keyof typeof documentDates, value: DateParts) => {
     setDocumentDates((prev) => ({ ...prev, [key]: value }));
   };
 
   const isDateComplete = (date: DateParts) => Boolean(date.day && date.month && date.year);
+
+  const isBlank = (value: string) => !value || value.trim() === "" || value.trim() === "รอการตั้งค่าระบบ";
+
+  const requiredMark = <span className="text-red-600"> *</span>;
+
+  const getInputClass = (variant: "yellow" | "green", missing: boolean) =>
+    `excel-input ${missing ? "excel-input-red" : variant === "yellow" ? "excel-input-yellow" : "excel-input-green"}`;
+
+  const staffNameOptions = useMemo(() => {
+    const names = new Set<string>();
+    staffUsers.forEach((user) => {
+      if (user.name && user.name.trim()) names.add(user.name.trim());
+    });
+    [schoolInfo.officer, schoolInfo.headOfficer, schoolInfo.financeOfficer, schoolInfo.director].forEach((name) => {
+      if (!isBlank(name)) names.add(name.trim());
+    });
+    return Array.from(names).sort((a, b) => a.localeCompare(b, "th"));
+  }, [staffUsers, schoolInfo]);
 
   const validateStep = (current: number) => {
     if (current === 1) {
@@ -335,6 +376,15 @@ export default function NewCasePage() {
         return "กรุณาเลือกประเภทงานย่อย";
       }
       return null;
+    }
+    if (current === 2) {
+      const schoolMissing = ["name", "address", "affiliation", "studentCount"].some((key) =>
+        isBlank(schoolInfo[key as keyof typeof schoolInfo])
+      );
+      const staffMissing = ["officer", "headOfficer", "financeOfficer", "director"].some((key) =>
+        isBlank(schoolInfo[key as keyof typeof schoolInfo])
+      );
+      if (schoolMissing || staffMissing) return "กรุณากรอกข้อมูลให้ครบถ้วน";
     }
     if (current === 3) {
       if (
@@ -397,14 +447,17 @@ export default function NewCasePage() {
     const message = validateStep(step);
     if (message) {
       setError(message);
+      setValidationStep(step);
       return;
     }
     setError(null);
+    setValidationStep(null);
     setStep((prev) => Math.min(prev + 1, stepLabels.length));
   };
 
   const handlePrev = () => {
     setError(null);
+    setValidationStep(null);
     setStep((prev) => Math.max(prev - 1, 1));
   };
 
@@ -621,9 +674,11 @@ export default function NewCasePage() {
             <h3 className="excel-title text-lg">STEP 1: เลือกปีงบประมาณ</h3>
             <div className="max-w-md space-y-4">
               <div>
-                <label className="excel-label">เลือกปีงบประมาณ</label>
+                <label className="excel-label">
+                  เลือกปีงบประมาณ{requiredMark}
+                </label>
                 <select
-                  className="excel-input excel-input-green mt-1 text-lg"
+                  className={`${getInputClass("green", showStep1Errors && !form.fiscalYear)} mt-1 text-lg`}
                   value={form.fiscalYear}
                   onChange={(event) => setForm((prev) => ({ ...prev, fiscalYear: event.target.value }))}
                 >
@@ -658,9 +713,10 @@ export default function NewCasePage() {
                 <div>
                   <label className="excel-label">
                     {form.caseType === "LUNCH" ? "รูปแบบอาหารกลางวัน" : "รูปแบบอินเทอร์เน็ต"}
+                    {requiredMark}
                   </label>
                   <select
-                    className="excel-input excel-input-green mt-1"
+                    className={`${getInputClass("green", showStep1Errors && !form.subtype)} mt-1`}
                     value={form.subtype}
                     onChange={(event) => setForm((prev) => ({ ...prev, subtype: event.target.value }))}
                   >
@@ -711,16 +767,22 @@ export default function NewCasePage() {
                 <table className="w-full text-sm">
                   <tbody>
                     {[
-                      ["ชื่อโรงเรียน", "name"],
-                      ["ที่อยู่", "address"],
-                      ["สังกัด", "affiliation"],
-                      ["จำนวนนักเรียน", "studentCount"]
-                    ].map(([label, key]) => (
-                      <tr key={label} className="border-b border-[var(--excel-border)]">
-                        <td className="w-48 py-2 text-slate-600">{label}</td>
+                      ["ชื่อโรงเรียน", "name", true],
+                      ["ที่อยู่", "address", true],
+                      ["สังกัด", "affiliation", true],
+                      ["จำนวนนักเรียน", "studentCount", true]
+                    ].map(([label, key, required]) => {
+                      const missing =
+                        showStep2Errors && isBlank(schoolInfo[key as keyof typeof schoolInfo]);
+                      return (
+                        <tr key={label} className="border-b border-[var(--excel-border)]">
+                          <td className="w-48 py-2 text-slate-600">
+                            {label}
+                            {required ? requiredMark : null}
+                          </td>
                         <td className="py-2">
                           <input
-                            className="excel-input excel-input-yellow"
+                            className={getInputClass("yellow", missing)}
                             value={schoolInfo[key as keyof typeof schoolInfo]}
                             onChange={(event) =>
                               setSchoolInfo((prev) => ({ ...prev, [key]: event.target.value }))
@@ -728,8 +790,9 @@ export default function NewCasePage() {
                             title="ข้อมูลจากการตั้งค่าระบบ"
                           />
                         </td>
-                      </tr>
-                    ))}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -740,16 +803,22 @@ export default function NewCasePage() {
                 <table className="w-full text-sm">
                   <tbody>
                     {[
-                      ["เจ้าหน้าที่", "officer"],
-                      ["หัวหน้าเจ้าหน้าที่", "headOfficer"],
-                      ["เจ้าหน้าที่การเงิน", "financeOfficer"],
-                      ["ผู้อำนวยการโรงเรียน", "director"]
-                    ].map(([label, key]) => (
-                      <tr key={label} className="border-b border-[var(--excel-border)]">
-                        <td className="w-48 py-2 text-slate-600">{label}</td>
+                      ["เจ้าหน้าที่", "officer", true],
+                      ["หัวหน้าเจ้าหน้าที่", "headOfficer", true],
+                      ["เจ้าหน้าที่การเงิน", "financeOfficer", true],
+                      ["ผู้อำนวยการโรงเรียน", "director", true]
+                    ].map(([label, key, required]) => {
+                      const missing =
+                        showStep2Errors && isBlank(schoolInfo[key as keyof typeof schoolInfo]);
+                      return (
+                        <tr key={label} className="border-b border-[var(--excel-border)]">
+                          <td className="w-48 py-2 text-slate-600">
+                            {label}
+                            {required ? requiredMark : null}
+                          </td>
                         <td className="py-2">
                           <input
-                            className="excel-input excel-input-yellow"
+                            className={getInputClass("yellow", missing)}
                             value={schoolInfo[key as keyof typeof schoolInfo]}
                             onChange={(event) =>
                               setSchoolInfo((prev) => ({ ...prev, [key]: event.target.value }))
@@ -757,8 +826,9 @@ export default function NewCasePage() {
                             title="ข้อมูลจากการตั้งค่าระบบ"
                           />
                         </td>
-                      </tr>
-                    ))}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -822,9 +892,11 @@ export default function NewCasePage() {
               </h3>
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="excel-label">เลขที่บันทึกข้อความ</label>
+                  <label className="excel-label">
+                    เลขที่บันทึกข้อความ{requiredMark}
+                  </label>
                   <input
-                    className="excel-input excel-input-yellow mt-1"
+                    className={`${getInputClass("yellow", showStep3Errors && !form.recordNumber)} mt-1`}
                     placeholder="......../2567"
                     value={form.recordNumber}
                     onChange={(event) => setForm((prev) => ({ ...prev, recordNumber: event.target.value }))}
@@ -853,9 +925,10 @@ export default function NewCasePage() {
                   <div>
                     <label className="excel-label">
                       {form.caseType === "LUNCH" ? "รูปแบบอาหารกลางวัน" : "รูปแบบอินเทอร์เน็ต"}
+                      {requiredMark}
                     </label>
                     <select
-                      className="excel-input excel-input-green mt-1"
+                      className={`${getInputClass("green", showStep3Errors && !form.subtype)} mt-1`}
                       value={form.subtype}
                       onChange={(event) => setForm((prev) => ({ ...prev, subtype: event.target.value }))}
                     >
@@ -871,10 +944,12 @@ export default function NewCasePage() {
                   </div>
                 ) : null}
                 <div className="md:col-span-2">
-                  <label className="excel-label">วันที่บันทึกข้อความรายงานขอซื้อ/จ้าง</label>
+                  <label className="excel-label">
+                    วันที่บันทึกข้อความรายงานขอซื้อ/จ้าง{requiredMark}
+                  </label>
                   <div className="mt-1 grid gap-2 md:grid-cols-3">
                     <select
-                      className="excel-input excel-input-green"
+                      className={getInputClass("green", showStep3Errors && !isDateComplete(form.recordDate))}
                       value={form.recordDate.day}
                       onChange={(event) =>
                         setForm((prev) => ({ ...prev, recordDate: { ...prev.recordDate, day: event.target.value } }))
@@ -888,7 +963,7 @@ export default function NewCasePage() {
                       ))}
                     </select>
                     <select
-                      className="excel-input excel-input-green"
+                      className={getInputClass("green", showStep3Errors && !isDateComplete(form.recordDate))}
                       value={form.recordDate.month}
                       onChange={(event) =>
                         setForm((prev) => ({
@@ -905,7 +980,7 @@ export default function NewCasePage() {
                       ))}
                     </select>
                     <select
-                      className="excel-input excel-input-green"
+                      className={getInputClass("green", showStep3Errors && !isDateComplete(form.recordDate))}
                       value={form.recordDate.year}
                       onChange={(event) =>
                         setForm((prev) => ({
@@ -925,9 +1000,11 @@ export default function NewCasePage() {
                   <p className="excel-hint mt-1">ตัวอย่าง: 7 พฤศจิกายน 2567</p>
                 </div>
                 <div>
-                  <label className="excel-label">กลุ่มงาน</label>
+                  <label className="excel-label">
+                    กลุ่มงาน{requiredMark}
+                  </label>
                   <select
-                    className="excel-input excel-input-green mt-1"
+                    className={`${getInputClass("green", showStep3Errors && !form.department)} mt-1`}
                     value={form.department}
                     onChange={(event) => setForm((prev) => ({ ...prev, department: event.target.value }))}
                   >
@@ -940,9 +1017,11 @@ export default function NewCasePage() {
                   </select>
                 </div>
                 <div>
-                  <label className="excel-label">เลือกรหัสโครงการ</label>
+                  <label className="excel-label">
+                    เลือกรหัสโครงการ{requiredMark}
+                  </label>
                   <select
-                    className="excel-input excel-input-green mt-1"
+                    className={`${getInputClass("green", showStep3Errors && !form.projectCode)} mt-1`}
                     value={form.projectCode}
                     onChange={(event) => setForm((prev) => ({ ...prev, projectCode: event.target.value }))}
                   >
@@ -971,18 +1050,22 @@ export default function NewCasePage() {
                   <input className="excel-input excel-input-red mt-1" value={form.budget} readOnly />
                 </div>
                 <div>
-                  <label className="excel-label">กำหนดส่งมอบ (วัน)</label>
+                  <label className="excel-label">
+                    กำหนดส่งมอบ (วัน){requiredMark}
+                  </label>
                   <input
-                    className="excel-input excel-input-yellow mt-1"
+                    className={`${getInputClass("yellow", showStep3Errors && !form.deliveryDays)} mt-1`}
                     value={form.deliveryDays}
                     onChange={(event) => setForm((prev) => ({ ...prev, deliveryDays: event.target.value }))}
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="excel-label">วันที่ส่งมอบงาน</label>
+                  <label className="excel-label">
+                    วันที่ส่งมอบงาน{requiredMark}
+                  </label>
                   <div className="mt-1 grid gap-2 md:grid-cols-3">
                     <select
-                      className="excel-input excel-input-green"
+                      className={getInputClass("green", showStep3Errors && !isDateComplete(form.deliveryDate))}
                       value={form.deliveryDate.day}
                       onChange={(event) =>
                         setForm((prev) => ({
@@ -999,7 +1082,7 @@ export default function NewCasePage() {
                       ))}
                     </select>
                     <select
-                      className="excel-input excel-input-green"
+                      className={getInputClass("green", showStep3Errors && !isDateComplete(form.deliveryDate))}
                       value={form.deliveryDate.month}
                       onChange={(event) =>
                         setForm((prev) => ({
@@ -1016,7 +1099,7 @@ export default function NewCasePage() {
                       ))}
                     </select>
                     <select
-                      className="excel-input excel-input-green"
+                      className={getInputClass("green", showStep3Errors && !isDateComplete(form.deliveryDate))}
                       value={form.deliveryDate.year}
                       onChange={(event) =>
                         setForm((prev) => ({
@@ -1051,9 +1134,11 @@ export default function NewCasePage() {
                       />
                     </div>
                     <div>
-                      <label className="excel-label">ภาคเรียนที่</label>
+                      <label className="excel-label">
+                        ภาคเรียนที่{requiredMark}
+                      </label>
                       <select
-                        className="excel-input excel-input-green mt-1"
+                        className={`${getInputClass("green", showStep3Errors && !lunchExtra.semester)} mt-1`}
                         value={lunchExtra.semester}
                         onChange={(event) =>
                           setLunchExtra((prev) => ({ ...prev, semester: event.target.value }))
@@ -1065,9 +1150,11 @@ export default function NewCasePage() {
                       </select>
                     </div>
                     <div>
-                      <label className="excel-label">ปีการศึกษา</label>
+                      <label className="excel-label">
+                        ปีการศึกษา{requiredMark}
+                      </label>
                       <select
-                        className="excel-input excel-input-green mt-1"
+                        className={`${getInputClass("green", showStep3Errors && !lunchExtra.academicYear)} mt-1`}
                         value={lunchExtra.academicYear}
                         onChange={(event) =>
                           setLunchExtra((prev) => ({ ...prev, academicYear: event.target.value }))
@@ -1092,9 +1179,11 @@ export default function NewCasePage() {
                       />
                     </div>
                     <div>
-                      <label className="excel-label">จำนวนวันประกอบอาหาร/วัน</label>
+                      <label className="excel-label">
+                        จำนวนวันประกอบอาหาร/วัน{requiredMark}
+                      </label>
                       <input
-                        className="excel-input excel-input-yellow mt-1"
+                        className={`${getInputClass("yellow", showStep3Errors && !lunchExtra.mealDays)} mt-1`}
                         value={lunchExtra.mealDays}
                         onChange={(event) =>
                           setLunchExtra((prev) => ({ ...prev, mealDays: event.target.value }))
@@ -1102,9 +1191,11 @@ export default function NewCasePage() {
                       />
                     </div>
                     <div>
-                      <label className="excel-label">จำนวนนักเรียน/คน</label>
+                      <label className="excel-label">
+                        จำนวนนักเรียน/คน{requiredMark}
+                      </label>
                       <input
-                        className="excel-input excel-input-yellow mt-1"
+                        className={`${getInputClass("yellow", showStep3Errors && !lunchExtra.mealStudentCount)} mt-1`}
                         value={lunchExtra.mealStudentCount}
                         onChange={(event) =>
                           setLunchExtra((prev) => ({ ...prev, mealStudentCount: event.target.value }))
@@ -1112,10 +1203,15 @@ export default function NewCasePage() {
                       />
                     </div>
                     <div className="md:col-span-2">
-                      <label className="excel-label">ประกอบอาหารตั้งแต่วันที่</label>
+                      <label className="excel-label">
+                        ประกอบอาหารตั้งแต่วันที่{requiredMark}
+                      </label>
                       <div className="mt-1 grid gap-2 md:grid-cols-3">
                         <select
-                          className="excel-input excel-input-green"
+                          className={getInputClass(
+                            "green",
+                            showStep3Errors && !isDateComplete(lunchExtra.mealStartDate)
+                          )}
                           value={lunchExtra.mealStartDate.day}
                           onChange={(event) =>
                             setLunchExtra((prev) => ({
@@ -1132,7 +1228,10 @@ export default function NewCasePage() {
                           ))}
                         </select>
                         <select
-                          className="excel-input excel-input-green"
+                          className={getInputClass(
+                            "green",
+                            showStep3Errors && !isDateComplete(lunchExtra.mealStartDate)
+                          )}
                           value={lunchExtra.mealStartDate.month}
                           onChange={(event) =>
                             setLunchExtra((prev) => ({
@@ -1149,7 +1248,10 @@ export default function NewCasePage() {
                           ))}
                         </select>
                         <select
-                          className="excel-input excel-input-green"
+                          className={getInputClass(
+                            "green",
+                            showStep3Errors && !isDateComplete(lunchExtra.mealStartDate)
+                          )}
                           value={lunchExtra.mealStartDate.year}
                           onChange={(event) =>
                             setLunchExtra((prev) => ({
@@ -1168,10 +1270,15 @@ export default function NewCasePage() {
                       </div>
                     </div>
                     <div className="md:col-span-2">
-                      <label className="excel-label">ถึงวันที่</label>
+                      <label className="excel-label">
+                        ถึงวันที่{requiredMark}
+                      </label>
                       <div className="mt-1 grid gap-2 md:grid-cols-3">
                         <select
-                          className="excel-input excel-input-green"
+                          className={getInputClass(
+                            "green",
+                            showStep3Errors && !isDateComplete(lunchExtra.mealEndDate)
+                          )}
                           value={lunchExtra.mealEndDate.day}
                           onChange={(event) =>
                             setLunchExtra((prev) => ({
@@ -1188,7 +1295,10 @@ export default function NewCasePage() {
                           ))}
                         </select>
                         <select
-                          className="excel-input excel-input-green"
+                          className={getInputClass(
+                            "green",
+                            showStep3Errors && !isDateComplete(lunchExtra.mealEndDate)
+                          )}
                           value={lunchExtra.mealEndDate.month}
                           onChange={(event) =>
                             setLunchExtra((prev) => ({
@@ -1205,7 +1315,10 @@ export default function NewCasePage() {
                           ))}
                         </select>
                         <select
-                          className="excel-input excel-input-green"
+                          className={getInputClass(
+                            "green",
+                            showStep3Errors && !isDateComplete(lunchExtra.mealEndDate)
+                          )}
                           value={lunchExtra.mealEndDate.year}
                           onChange={(event) =>
                             setLunchExtra((prev) => ({
@@ -1364,8 +1477,12 @@ export default function NewCasePage() {
                 <table className="w-full border text-sm">
                   <thead className="bg-slate-50 text-left text-slate-600">
                     <tr>
-                      <th className="border px-3 py-2">ตำแหน่ง</th>
-                      <th className="border px-3 py-2">ชื่อ-สกุล</th>
+                      <th className="border px-3 py-2">
+                        ตำแหน่ง<span className="text-red-600"> *</span>
+                      </th>
+                      <th className="border px-3 py-2">
+                        ชื่อ-สกุล<span className="text-red-600"> *</span>
+                      </th>
                       <th className="border px-3 py-2">หน้าที่</th>
                     </tr>
                   </thead>
@@ -1374,7 +1491,7 @@ export default function NewCasePage() {
                       <tr key={`committee-${index}`}>
                         <td className="border px-2 py-2">
                           <select
-                            className="excel-input excel-input-green"
+                            className={getInputClass("green", showStep4Errors && !row.position)}
                             value={row.position}
                             onChange={(event) =>
                               setCommittee((prev) =>
@@ -1393,8 +1510,8 @@ export default function NewCasePage() {
                           </select>
                         </td>
                         <td className="border px-2 py-2">
-                          <input
-                            className="excel-input excel-input-yellow"
+                          <select
+                            className={getInputClass("green", showStep4Errors && !row.name)}
                             value={row.name}
                             onChange={(event) =>
                               setCommittee((prev) =>
@@ -1403,7 +1520,19 @@ export default function NewCasePage() {
                                 )
                               )
                             }
-                          />
+                          >
+                            <option value="">เลือกบุคลากร</option>
+                            {staffNameOptions.length === 0 ? (
+                              <option value="" disabled>
+                                ไม่มีรายชื่อบุคลากร
+                              </option>
+                            ) : null}
+                            {staffNameOptions.map((name) => (
+                              <option key={name} value={name}>
+                                {name}
+                              </option>
+                            ))}
+                          </select>
                         </td>
                         <td className="border px-2 py-2">
                           <select
@@ -1436,8 +1565,12 @@ export default function NewCasePage() {
                     <table className="w-full border text-sm">
                       <thead className="bg-slate-50 text-left text-slate-600">
                         <tr>
-                          <th className="border px-3 py-2">ตำแหน่ง</th>
-                          <th className="border px-3 py-2">ชื่อ-สกุล</th>
+                          <th className="border px-3 py-2">
+                            ตำแหน่ง<span className="text-red-600"> *</span>
+                          </th>
+                          <th className="border px-3 py-2">
+                            ชื่อ-สกุล<span className="text-red-600"> *</span>
+                          </th>
                           <th className="border px-3 py-2">หน้าที่</th>
                         </tr>
                       </thead>
@@ -1446,7 +1579,7 @@ export default function NewCasePage() {
                           <tr key={`food-committee-${index}`}>
                             <td className="border px-2 py-2">
                               <select
-                                className="excel-input excel-input-green"
+                                className={getInputClass("green", showStep4Errors && !row.position)}
                                 value={row.position}
                                 onChange={(event) =>
                                   setFoodCommittee((prev) =>
@@ -1465,8 +1598,8 @@ export default function NewCasePage() {
                               </select>
                             </td>
                             <td className="border px-2 py-2">
-                              <input
-                                className="excel-input excel-input-yellow"
+                              <select
+                                className={getInputClass("green", showStep4Errors && !row.name)}
                                 value={row.name}
                                 onChange={(event) =>
                                   setFoodCommittee((prev) =>
@@ -1475,7 +1608,19 @@ export default function NewCasePage() {
                                     )
                                   )
                                 }
-                              />
+                              >
+                                <option value="">เลือกบุคลากร</option>
+                                {staffNameOptions.length === 0 ? (
+                                  <option value="" disabled>
+                                    ไม่มีรายชื่อบุคลากร
+                                  </option>
+                                ) : null}
+                                {staffNameOptions.map((name) => (
+                                  <option key={name} value={name}>
+                                    {name}
+                                  </option>
+                                ))}
+                              </select>
                             </td>
                             <td className="border px-2 py-2">
                               <select
@@ -1516,9 +1661,11 @@ export default function NewCasePage() {
             <div className="space-y-4">
               <h3 className="excel-title text-lg">STEP 5: เลือกผู้รับจ้าง</h3>
               <div>
-                <label className="excel-label">เลือกผู้รับจ้าง</label>
+                <label className="excel-label">
+                  เลือกผู้รับจ้าง{requiredMark}
+                </label>
                 <select
-                  className="excel-input excel-input-green mt-1"
+                  className={`${getInputClass("green", contractorMissing)} mt-1`}
                   value={contractor.vendorId}
                   onChange={(event) =>
                     setContractor((prev) => ({ ...prev, vendorId: event.target.value }))
@@ -1558,9 +1705,11 @@ export default function NewCasePage() {
               {form.caseType === "LUNCH" ? (
                 <div className="mt-4 grid gap-3 md:grid-cols-2">
                   <div>
-                    <label className="excel-label">รหัสผู้รับจ้าง</label>
+                    <label className="excel-label">
+                      รหัสผู้รับจ้าง{requiredMark}
+                    </label>
                     <input
-                      className="excel-input excel-input-yellow mt-1"
+                      className={`${getInputClass("yellow", contractorCodeMissing)} mt-1`}
                       value={contractor.code}
                       onChange={(event) =>
                         setContractor((prev) => ({ ...prev, code: event.target.value }))
@@ -1654,9 +1803,11 @@ export default function NewCasePage() {
             {form.caseType === "LUNCH" ? (
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="excel-label">เลขที่คำสั่งแต่งตั้งคณะกรรมการ</label>
+                  <label className="excel-label">
+                    เลขที่คำสั่งแต่งตั้งคณะกรรมการ{requiredMark}
+                  </label>
                   <input
-                    className="excel-input excel-input-yellow mt-1"
+                    className={`${getInputClass("yellow", showStep6Errors && !lunchDocNumbers.committeeOrderNumber)} mt-1`}
                     value={lunchDocNumbers.committeeOrderNumber}
                     onChange={(event) =>
                       setLunchDocNumbers((prev) => ({ ...prev, committeeOrderNumber: event.target.value }))
@@ -1664,9 +1815,11 @@ export default function NewCasePage() {
                   />
                 </div>
                 <div>
-                  <label className="excel-label">เลขที่บันทึกข้อความรายงานผล</label>
+                  <label className="excel-label">
+                    เลขที่บันทึกข้อความรายงานผล{requiredMark}
+                  </label>
                   <input
-                    className="excel-input excel-input-yellow mt-1"
+                    className={`${getInputClass("yellow", showStep6Errors && !lunchDocNumbers.reportNumber)} mt-1`}
                     value={lunchDocNumbers.reportNumber}
                     onChange={(event) =>
                       setLunchDocNumbers((prev) => ({ ...prev, reportNumber: event.target.value }))
@@ -1994,6 +2147,7 @@ export default function NewCasePage() {
                     : dateKey === "reportDate"
                       ? lunchDocNumbers.reportDate
                       : documentDates[dateKey as keyof typeof documentDates];
+                const isMissing = showStep6Errors && !isDateComplete(value);
                 const updateDate =
                   dateKey === "committeeOrderDate"
                     ? (next: DateParts) =>
@@ -2008,10 +2162,13 @@ export default function NewCasePage() {
                           }));
                 return (
                   <div key={label}>
-                    <label className="excel-label">{label}</label>
+                    <label className="excel-label">
+                      {label}
+                      {requiredMark}
+                    </label>
                     <div className="mt-1 grid gap-2 md:grid-cols-3">
                       <select
-                        className="excel-input excel-input-green"
+                        className={getInputClass("green", isMissing)}
                         value={value.day}
                         onChange={(event) => updateDate({ ...value, day: event.target.value })}
                       >
@@ -2023,7 +2180,7 @@ export default function NewCasePage() {
                         ))}
                       </select>
                       <select
-                        className="excel-input excel-input-green"
+                        className={getInputClass("green", isMissing)}
                         value={value.month}
                         onChange={(event) => updateDate({ ...value, month: event.target.value })}
                       >
@@ -2035,7 +2192,7 @@ export default function NewCasePage() {
                         ))}
                       </select>
                       <select
-                        className="excel-input excel-input-green"
+                        className={getInputClass("green", isMissing)}
                         value={value.year}
                         onChange={(event) => updateDate({ ...value, year: event.target.value })}
                       >
