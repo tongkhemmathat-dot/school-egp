@@ -4,10 +4,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "../../../lib/api";
-import type { ProcurementCase, User, Vendor } from "../../../lib/types";
+import type { ProcurementCase, StaffMember, Vendor } from "../../../lib/types";
 
 type DateParts = { day: string; month: string; year: string };
-type CommitteeRow = { position: string; name: string; role: string };
+type CommitteeRow = { staffId?: string; position: string; name: string; role: string };
 
 const baseStepLabels = [
   "เลือกปีงบประมาณ",
@@ -35,8 +35,6 @@ const months = [
 ];
 
 const departmentOptions = ["กลุ่มงานบริหารทั่วไป", "กลุ่มงานบริหารงานบุคคล", "กลุ่มงานบริหารงานวิชาการ"];
-
-const committeePositions = ["ครูผู้ช่วย", "ครู", "ครูชำนาญการ", "ครูชำนาญการพิเศษ", "รองผู้อำนวยการ", "ผู้อำนวยการ"];
 
 const committeeRoles = ["ประธาน", "กรรมการ"];
 
@@ -103,7 +101,7 @@ export default function NewCasePage() {
   const [step, setStep] = useState(1);
   const [infoTab, setInfoTab] = useState<"school" | "staff" | "contractor">("school");
   const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [staffUsers, setStaffUsers] = useState<User[]>([]);
+  const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationStep, setValidationStep] = useState<number | null>(null);
@@ -221,10 +219,10 @@ export default function NewCasePage() {
     Promise.allSettled([
       apiFetch<Vendor[]>("admin/vendors"),
       apiFetch("admin/organization"),
-      apiFetch<User[]>("admin/users")
+      apiFetch<StaffMember[]>("admin/staff")
     ]).then((results) => {
       if (!active) return;
-      const [vendorResult, orgResult, userResult] = results;
+      const [vendorResult, orgResult, staffResult] = results;
       if (vendorResult.status === "fulfilled") {
         setVendors(vendorResult.value);
       }
@@ -242,8 +240,8 @@ export default function NewCasePage() {
           director: orgData?.directorName || prev.director
         }));
       }
-      if (userResult.status === "fulfilled") {
-        setStaffUsers(userResult.value);
+      if (staffResult.status === "fulfilled") {
+        setStaffMembers(staffResult.value);
       }
     });
     return () => {
@@ -378,16 +376,16 @@ export default function NewCasePage() {
   const getInputClass = (variant: "yellow" | "green", missing: boolean) =>
     `excel-input ${missing ? "excel-input-red" : variant === "yellow" ? "excel-input-yellow" : "excel-input-green"}`;
 
-  const staffNameOptions = useMemo(() => {
-    const names = new Set<string>();
-    staffUsers.forEach((user) => {
-      if (user.name && user.name.trim()) names.add(user.name.trim());
-    });
-    [schoolInfo.officer, schoolInfo.headOfficer, schoolInfo.financeOfficer, schoolInfo.director].forEach((name) => {
-      if (!isBlank(name)) names.add(name.trim());
-    });
-    return Array.from(names).sort((a, b) => a.localeCompare(b, "th"));
-  }, [staffUsers, schoolInfo]);
+  const staffMemberOptions = useMemo(
+    () =>
+      staffMembers.map((member) => ({
+        id: member.id,
+        name: member.name,
+        position: member.position,
+        label: `${member.name} (${member.position})`
+      })),
+    [staffMembers]
+  );
 
   const validateStep = (current: number) => {
     if (current === 1) {
@@ -1486,9 +1484,6 @@ export default function NewCasePage() {
                   <thead className="bg-slate-50 text-left text-slate-600">
                     <tr>
                       <th className="border px-3 py-2">
-                        ตำแหน่ง<span className="text-red-600"> *</span>
-                      </th>
-                      <th className="border px-3 py-2">
                         ชื่อ-สกุล<span className="text-red-600"> *</span>
                       </th>
                       <th className="border px-3 py-2">หน้าที่</th>
@@ -1499,48 +1494,37 @@ export default function NewCasePage() {
                       <tr key={`committee-${index}`}>
                         <td className="border px-2 py-2">
                           <select
-                            className={getInputClass("green", showStep4Errors && !row.position)}
-                            value={row.position}
-                            onChange={(event) =>
-                              setCommittee((prev) =>
-                                prev.map((item, idx) =>
-                                  idx === index ? { ...item, position: event.target.value } : item
-                                )
-                              )
-                            }
-                          >
-                            <option value="">เลือกตำแหน่ง</option>
-                            {committeePositions.map((pos) => (
-                              <option key={pos} value={pos}>
-                                {pos}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="border px-2 py-2">
-                          <select
                             className={getInputClass("green", showStep4Errors && !row.name)}
-                            value={row.name}
-                            onChange={(event) =>
+                            value={row.staffId || ""}
+                            onChange={(event) => {
+                              const selected = staffMemberOptions.find((option) => option.id === event.target.value);
                               setCommittee((prev) =>
                                 prev.map((item, idx) =>
-                                  idx === index ? { ...item, name: event.target.value } : item
+                                  idx === index
+                                    ? {
+                                        ...item,
+                                        staffId: selected?.id,
+                                        name: selected?.name || "",
+                                        position: selected?.position || ""
+                                      }
+                                    : item
                                 )
-                              )
-                            }
+                              );
+                            }}
                           >
                             <option value="">เลือกบุคลากร</option>
-                            {staffNameOptions.length === 0 ? (
+                            {staffMemberOptions.length === 0 ? (
                               <option value="" disabled>
                                 ไม่มีรายชื่อบุคลากร
                               </option>
                             ) : null}
-                            {staffNameOptions.map((name) => (
-                              <option key={name} value={name}>
-                                {name}
+                            {staffMemberOptions.map((option) => (
+                              <option key={option.id} value={option.id}>
+                                {option.label}
                               </option>
                             ))}
                           </select>
+                          <p className="excel-hint mt-1">ตำแหน่ง: {row.position || "-"}</p>
                         </td>
                         <td className="border px-2 py-2">
                           <select
@@ -1574,9 +1558,6 @@ export default function NewCasePage() {
                       <thead className="bg-slate-50 text-left text-slate-600">
                         <tr>
                           <th className="border px-3 py-2">
-                            ตำแหน่ง<span className="text-red-600"> *</span>
-                          </th>
-                          <th className="border px-3 py-2">
                             ชื่อ-สกุล<span className="text-red-600"> *</span>
                           </th>
                           <th className="border px-3 py-2">หน้าที่</th>
@@ -1587,48 +1568,37 @@ export default function NewCasePage() {
                           <tr key={`food-committee-${index}`}>
                             <td className="border px-2 py-2">
                               <select
-                                className={getInputClass("green", showStep4Errors && !row.position)}
-                                value={row.position}
-                                onChange={(event) =>
-                                  setFoodCommittee((prev) =>
-                                    prev.map((item, idx) =>
-                                      idx === index ? { ...item, position: event.target.value } : item
-                                    )
-                                  )
-                                }
-                              >
-                                <option value="">เลือกตำแหน่ง</option>
-                                {committeePositions.map((pos) => (
-                                  <option key={pos} value={pos}>
-                                    {pos}
-                                  </option>
-                                ))}
-                              </select>
-                            </td>
-                            <td className="border px-2 py-2">
-                              <select
                                 className={getInputClass("green", showStep4Errors && !row.name)}
-                                value={row.name}
-                                onChange={(event) =>
+                                value={row.staffId || ""}
+                                onChange={(event) => {
+                                  const selected = staffMemberOptions.find((option) => option.id === event.target.value);
                                   setFoodCommittee((prev) =>
                                     prev.map((item, idx) =>
-                                      idx === index ? { ...item, name: event.target.value } : item
+                                      idx === index
+                                        ? {
+                                            ...item,
+                                            staffId: selected?.id,
+                                            name: selected?.name || "",
+                                            position: selected?.position || ""
+                                          }
+                                        : item
                                     )
-                                  )
-                                }
+                                  );
+                                }}
                               >
                                 <option value="">เลือกบุคลากร</option>
-                                {staffNameOptions.length === 0 ? (
+                                {staffMemberOptions.length === 0 ? (
                                   <option value="" disabled>
                                     ไม่มีรายชื่อบุคลากร
                                   </option>
                                 ) : null}
-                                {staffNameOptions.map((name) => (
-                                  <option key={name} value={name}>
-                                    {name}
+                                {staffMemberOptions.map((option) => (
+                                  <option key={option.id} value={option.id}>
+                                    {option.label}
                                   </option>
                                 ))}
                               </select>
+                              <p className="excel-hint mt-1">ตำแหน่ง: {row.position || "-"}</p>
                             </td>
                             <td className="border px-2 py-2">
                               <select

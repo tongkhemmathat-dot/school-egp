@@ -23,6 +23,14 @@ export type Vendor = {
   bankBranch?: string | null;
 };
 
+export type StaffMember = {
+  id: string;
+  orgId: string;
+  name: string;
+  position: string;
+  createdAt?: string;
+};
+
 export type CaseLine = {
   id?: string;
   description: string;

@@ -76,6 +76,15 @@ export const VendorSchema = z.object({
 });
 export type Vendor = z.infer<typeof VendorSchema>;
 
+export const StaffMemberSchema = z.object({
+  id: z.string().uuid(),
+  orgId: z.string().uuid(),
+  name: z.string().min(1),
+  position: z.string().min(1),
+  createdAt: z.string().datetime().optional()
+});
+export type StaffMember = z.infer<typeof StaffMemberSchema>;
+
 export const UnitSchema = z.object({
   id: z.string().uuid(),
   orgId: z.string().uuid(),
@@ -263,6 +272,12 @@ export const CreateVendorSchema = z.object({
   bankBranch: z.string().optional().nullable()
 });
 export const UpdateVendorSchema = CreateVendorSchema.partial();
+
+export const CreateStaffMemberSchema = z.object({
+  name: z.string().min(1),
+  position: z.string().min(1)
+});
+export const UpdateStaffMemberSchema = CreateStaffMemberSchema.partial();
 
 export const CreateUnitSchema = z.object({ name: z.string().min(1) });
 export const UpdateUnitSchema = CreateUnitSchema.partial();

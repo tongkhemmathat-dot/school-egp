@@ -301,6 +301,84 @@ export class OrganizationsService {
     });
   }
 
+  async listStaffMembers(orgId: string) {
+    return this.prisma.staffMember.findMany({ where: { orgId }, orderBy: { createdAt: "desc" } });
+  }
+
+  async createStaffMember(
+    orgId: string,
+    userId: string,
+    data: { name: string; position: string },
+    meta?: { ip?: string | null; userAgent?: string | null }
+  ) {
+    const staff = await this.prisma.staffMember.create({
+      data: {
+        orgId,
+        name: data.name,
+        position: data.position
+      }
+    });
+    await this.audit.record({
+      orgId,
+      userId,
+      action: "CREATE",
+      entity: "staffMember",
+      entityId: staff.id,
+      after: staff,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent
+    });
+    return staff;
+  }
+
+  async updateStaffMember(
+    orgId: string,
+    userId: string,
+    staffId: string,
+    data: { name?: string; position?: string },
+    meta?: { ip?: string | null; userAgent?: string | null }
+  ) {
+    const before = await this.prisma.staffMember.findFirst({ where: { id: staffId, orgId } });
+    if (!before) throw new NotFoundException("Staff member not found");
+    const updated = await this.prisma.staffMember.update({
+      where: { id: staffId },
+      data
+    });
+    await this.audit.record({
+      orgId,
+      userId,
+      action: "UPDATE",
+      entity: "staffMember",
+      entityId: staffId,
+      before,
+      after: updated,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent
+    });
+    return updated;
+  }
+
+  async deleteStaffMember(
+    orgId: string,
+    userId: string,
+    staffId: string,
+    meta?: { ip?: string | null; userAgent?: string | null }
+  ) {
+    const before = await this.prisma.staffMember.findFirst({ where: { id: staffId, orgId } });
+    if (!before) throw new NotFoundException("Staff member not found");
+    await this.prisma.staffMember.delete({ where: { id: staffId } });
+    await this.audit.record({
+      orgId,
+      userId,
+      action: "DELETE",
+      entity: "staffMember",
+      entityId: staffId,
+      before,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent
+    });
+  }
+
   async listUnits(orgId: string) {
     return this.prisma.unit.findMany({ where: { orgId }, orderBy: { name: "asc" } });
   }

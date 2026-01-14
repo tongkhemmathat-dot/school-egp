@@ -4,6 +4,7 @@ import {
   CreateCategorySchema,
   CreateItemSchema,
   CreateOrganizationSchema,
+  CreateStaffMemberSchema,
   CreateUnitSchema,
   CreateUserSchema,
   CreateVendorSchema,
@@ -11,6 +12,7 @@ import {
   UpdateCategorySchema,
   UpdateItemSchema,
   UpdateOrganizationSchema,
+  UpdateStaffMemberSchema,
   UpdateUnitSchema,
   UpdateUserSchema,
   UpdateVendorSchema,
@@ -192,6 +194,37 @@ export class OrganizationsController {
   @Roles("Admin", "ProcurementOfficer")
   async deleteVendor(@Req() req: any, @Param("id") id: string) {
     await this.orgs.deleteVendor(req.user.orgId, req.user.sub, id, getRequestMeta(req));
+    return { ok: true };
+  }
+
+  @Get("staff")
+  @Roles("Admin", "ProcurementOfficer")
+  listStaff(@Req() req: any) {
+    return this.orgs.listStaffMembers(req.user.orgId);
+  }
+
+  @Post("staff")
+  @Roles("Admin", "ProcurementOfficer")
+  createStaff(@Req() req: any, @Body() body: { name: string; position: string }) {
+    const payload = parseSchema(CreateStaffMemberSchema, body);
+    return this.orgs.createStaffMember(req.user.orgId, req.user.sub, payload, getRequestMeta(req));
+  }
+
+  @Patch("staff/:id")
+  @Roles("Admin", "ProcurementOfficer")
+  updateStaff(
+    @Req() req: any,
+    @Param("id") id: string,
+    @Body() body: { name?: string; position?: string }
+  ) {
+    const payload = parseSchema(UpdateStaffMemberSchema, body);
+    return this.orgs.updateStaffMember(req.user.orgId, req.user.sub, id, payload, getRequestMeta(req));
+  }
+
+  @Delete("staff/:id")
+  @Roles("Admin", "ProcurementOfficer")
+  async deleteStaff(@Req() req: any, @Param("id") id: string) {
+    await this.orgs.deleteStaffMember(req.user.orgId, req.user.sub, id, getRequestMeta(req));
     return { ok: true };
   }
 

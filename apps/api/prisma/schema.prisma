@@ -81,6 +81,7 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   users     User[]
+  staffMembers StaffMember[]
   vendors   Vendor[]
   units     Unit[]
   categories Category[]
@@ -96,6 +97,16 @@ model Organization {
   depreciationPolicies DepreciationPolicy[]
   templatePacks TemplatePack[]
   runningNumbers DocumentRunningNumber[]
+}
+
+model StaffMember {
+  id        String   @id @default(uuid())
+  orgId     String
+  name      String
+  position  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  organization Organization @relation(fields: [orgId], references: [id])
 }
 
 model User {
